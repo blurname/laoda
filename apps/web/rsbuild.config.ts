@@ -4,7 +4,7 @@ import { pluginReact } from "@rsbuild/plugin-react";
 export default defineConfig({
   plugins: [pluginReact()],
   server: {
-    port: 3000,
+    port: 26123,
   },
   html: {
     title: "Folder Watcher",

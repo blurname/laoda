@@ -1,11 +1,22 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { serveStatic } from "hono/bun";
 import { watch } from "chokidar";
-import { join, basename } from "path";
+import { join, basename, relative } from "path";
 import { readFileSync, existsSync, readdirSync } from "fs";
 import { execSync } from "child_process";
 
-// --- OS Abstraction Layer ---
+// Optional embedded assets for single-binary distribution
+let embeddedAssets: Record<string, { content: string; contentType: string }> | null = null;
+try {
+  // @ts-ignore
+  const gen = await import("../../output-gitignore/embedded-assets.ts");
+  embeddedAssets = gen.embeddedAssets;
+} catch {
+  // Not bundled
+}
+
+// ... (keep OS Abstraction Layer)
 
 interface OSAdapter {
   pickFolder(): Promise<string | null>;
@@ -43,6 +54,29 @@ const os: OSAdapter = new MacOSAdapter();
 // --- App Logic ---
 
 const app = new Hono();
+
+// Parse CLI arguments
+const args = Bun.argv;
+let defaultPort = 26124;
+
+if (args.includes("--help") || args.includes("-h")) {
+  console.log(`
+Lead - Project Manager CLI
+
+Usage:
+  lead [options]
+
+Options:
+  --port, -p <number>  Port to run the server on (default: 26124)
+  --help, -h           Show this help message
+  `);
+  process.exit(0);
+}
+
+const portArgIdx = args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
+if (portArgIdx !== -1 && args[portArgIdx + 1]) {
+  defaultPort = parseInt(args[portArgIdx + 1]);
+}
 
 app.use("/*", cors());
 
@@ -215,6 +249,59 @@ app.get("/api/folders", (c) => {
   return c.json(Array.from(folders.values()));
 });
 
+// Serve static files (either embedded or from dist folder)
+if (embeddedAssets) {
+  console.log("Serving from embedded assets");
+  app.get("*", async (c, next) => {
+    const path = c.req.path === "/" ? "/index.html" : c.req.path;
+    const asset = embeddedAssets![path];
+    if (asset) {
+      return c.body(Buffer.from(asset.content, "base64"), 200, {
+        "Content-Type": asset.contentType,
+      });
+    }
+    // Fallback for SPA routing
+    if (!c.req.path.startsWith("/api") && c.req.path !== "/ws") {
+      const index = embeddedAssets!["/index.html"];
+      if (index) {
+        return c.body(Buffer.from(index.content, "base64"), 200, {
+          "Content-Type": index.contentType,
+        });
+      }
+    }
+    return next();
+  });
+} else {
+  const possibleDistPaths = [
+    join(process.cwd(), "apps/web/dist"),
+    join(import.meta.dir, "../web/dist"),
+    "./apps/web/dist"
+  ];
+
+  let distPath = "";
+  for (const p of possibleDistPaths) {
+    if (existsSync(p)) {
+      distPath = p;
+      break;
+    }
+  }
+
+  if (distPath) {
+    console.log(`Serving static files from: ${distPath}`);
+    app.use("/*", serveStatic({ 
+      root: relative(process.cwd(), distPath),
+      rewriteRequestPath: (path) => (path === "/" ? "/index.html" : path)
+    }));
+
+    app.get("*", (c, next) => {
+      if (c.req.path.startsWith("/api") || c.req.path === "/ws") {
+        return next();
+      }
+      return serveStatic({ path: join(distPath, "index.html") })(c, next);
+    });
+  }
+}
+
 const clients = new Set<any>();
 
 function notifyClients(data: any) {
@@ -228,17 +315,17 @@ function notifyClients(data: any) {
   }
 }
 
+const port = process.env.PORT ? parseInt(process.env.PORT) : defaultPort;
+
 Bun.serve({
-  port: 3001,
+  port,
   hostname: "0.0.0.0",
   fetch(req, server) {
     const url = new URL(req.url);
     if (url.pathname === "/ws") {
-      console.log("Attempting WebSocket upgrade...");
       if (server.upgrade(req)) {
         return;
       }
-      console.error("WebSocket upgrade failed");
       return new Response("Upgrade failed", { status: 400 });
     }
     return app.fetch(req);
@@ -246,8 +333,6 @@ Bun.serve({
   websocket: {
     open(ws) {
       clients.add(ws);
-      console.log("WebSocket Client connected");
-      // Send initial state
       ws.send(
         JSON.stringify({
           type: "UPDATE_FOLDERS",
@@ -257,10 +342,14 @@ Bun.serve({
     },
     close(ws) {
       clients.delete(ws);
-      console.log("WebSocket Client disconnected");
     },
     message(_ws, _msg) {},
   },
 });
 
-console.log(`Server running at http://localhost:3001`);
+console.log(`Lead Server running at http://localhost:${port}`);
+
+// Auto open browser if not in dev mode
+if (process.env.NODE_ENV === "production") {
+  Bun.spawn(["open", `http://localhost:${port}`]);
+}

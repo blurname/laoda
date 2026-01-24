@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:3001";
+const isProd = import.meta.env.PROD;
+const API_BASE = isProd ? window.location.origin : "http://localhost:26124";
 
 export const api = {
   async pickFolder(): Promise<string> {
