@@ -1,0 +1,19 @@
+{
+  "name": "lead-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "bun --cwd apps/web dev",
+    "dev:server": "bun --cwd apps/server dev",
+    "dev": "bun --filter \"*\" dev",
+    "lint": "oxlint -c .oxlintrc.json",
+    "format": "oxfmt ."
+  },
+  "devDependencies": {
+    "oxfmt": "^0.26.0",
+    "oxlint": "latest",
+    "typescript": "^5.0.0"
+  }
+}

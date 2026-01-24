@@ -1,0 +1,44 @@
+const API_BASE = "http://localhost:3001";
+
+export const api = {
+  async pickFolder(): Promise<string> {
+    const res = await fetch(`${API_BASE}/api/pick-folder`, { method: "POST" });
+    if (!res.ok) throw new Error("Failed to pick folder");
+    const { path } = await res.json();
+    return path;
+  },
+
+  async watchFolder(path: string) {
+    const res = await fetch(`${API_BASE}/api/watch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) throw new Error("Failed to watch folder");
+    return res.json();
+  },
+
+  async watchBulk(paths: string[]) {
+    const res = await fetch(`${API_BASE}/api/watch-bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths }),
+    });
+    if (!res.ok) throw new Error("Failed to watch folders in bulk");
+    return res.json();
+  },
+
+  async openInIDE(ide: string, path: string) {
+    const res = await fetch(`${API_BASE}/api/open/${ide}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) throw new Error(`Failed to open in ${ide}`);
+    return res.json();
+  },
+
+  getWsUrl() {
+    return `${API_BASE.replace("http", "ws")}/ws`;
+  }
+};

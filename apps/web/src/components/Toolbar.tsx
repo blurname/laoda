@@ -1,0 +1,106 @@
+import React, { useState } from "react";
+import { useAtom, useSetAtom } from "jotai";
+import { selectedIDEAtom, IDEType, foldersAtom, viewAtom } from "../store/atoms";
+import { api } from "../utils/api";
+
+export const Toolbar = () => {
+  const [isPicking, setIsPicking] = useState(false);
+  const [selectedIDE, setSelectedIDE] = useAtom(selectedIDEAtom);
+  const [currentView, setCurrentView] = useAtom(viewAtom);
+  const setFolders = useSetAtom(foldersAtom);
+
+  const handleImport = async () => {
+    setIsPicking(true);
+    try {
+      const path = await api.pickFolder();
+
+      // Update local storage first to ensure UI is responsive and data is persistent
+      const name = path.split("/").pop() || path;
+      const id = btoa(path);
+      const newFolder = {
+        id,
+        name,
+        path,
+        branch: "loading...",
+        diffCount: 0,
+        latestCommit: "",
+      };
+
+      setFolders((prev) => {
+        if (prev.find((f) => f.path === path)) return prev;
+        return [...prev, newFolder];
+      });
+
+      await api.watchFolder(path);
+    } catch (err) {
+      console.error("Import failed:", err);
+    } finally {
+      setIsPicking(false);
+    }
+  };
+
+  return (
+    <header className="bg-zinc-100 border-b border-zinc-300 px-6 py-4 flex items-center justify-between relative z-10 shadow-sm">
+      <div className="flex items-center gap-10">
+        <h1 className="text-xl font-bold text-zinc-900 tracking-tighter uppercase italic">Lead_</h1>
+        
+        <div className="flex items-center gap-0 border border-zinc-200 bg-zinc-200/50">
+          <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] border-r border-zinc-200">
+            <span>IDE</span>
+          </div>
+          <div className="relative">
+            <select
+              value={selectedIDE || ""}
+              onChange={(e) => setSelectedIDE((e.target.value as IDEType) || null)}
+              className="appearance-none bg-transparent pr-10 pl-4 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none uppercase tracking-wide"
+            >
+              <option value="">None</option>
+              <option value="cursor">Cursor</option>
+              <option value="trae">Trae</option>
+              <option value="vscode">VSCode</option>
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-1 border border-zinc-300 p-0.5 bg-zinc-200/30">
+          <button
+            onClick={() => setCurrentView("list")}
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all ${
+              currentView === "list" 
+                ? "bg-zinc-700 text-zinc-100 shadow-sm" 
+                : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+            }`}
+          >
+            Terminal
+          </button>
+          <button
+            onClick={() => setCurrentView("data")}
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all ${
+              currentView === "data" 
+                ? "bg-zinc-700 text-zinc-100 shadow-sm" 
+                : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+            }`}
+          >
+            Data
+          </button>
+        </div>
+
+        <button
+          onClick={handleImport}
+          disabled={isPicking}
+          className="bg-zinc-700 hover:bg-zinc-700/80 disabled:bg-zinc-300 text-zinc-100 px-5 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all border border-zinc-700"
+        >
+          {isPicking ? "Processing..." : "Import_Project"}
+        </button>
+      </div>
+    </header>
+  );
+};
+

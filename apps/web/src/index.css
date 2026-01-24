@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #e4e4e7; /* zinc-200 - mid-tone graphite paper */
+  color: #27272a; /* zinc-800 - dark ink but not pure black */
+  cursor: default !important;
+}
+
+/* Ensure interactive elements don't show the hand cursor */
+button, 
+select, 
+a, 
+input, 
+textarea,
+[role="button"] {
+  cursor: default !important;
+}
+
+/* Scrollbar Styling - Refined Industrial */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #a1a1aa; /* zinc-400 */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #71717a; /* zinc-500 */
+}
