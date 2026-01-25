@@ -1,6 +1,6 @@
-import React from "react";
-import { useAtomValue } from "jotai";
-import { FolderInfo, selectedIDEAtom } from "../store/atoms";
+import React, { useState } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
+import { FolderInfo, selectedIDEAtom, foldersAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
 interface FolderCardProps {
@@ -10,6 +10,8 @@ interface FolderCardProps {
 
 export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnected }) => {
   const selectedIDE = useAtomValue(selectedIDEAtom);
+  const setFolders = useSetAtom(foldersAtom);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   const handleOpenIDE = async () => {
     if (!selectedIDE) {
@@ -23,6 +25,37 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     }
   };
 
+  const handleDuplicate = async () => {
+    if (isDuplicating) return;
+    setIsDuplicating(true);
+    try {
+      const { newPath } = await api.duplicateFolder(folder.path);
+      const name = newPath.split("/").pop() || newPath;
+      const id = btoa(newPath);
+      
+      const newFolder = {
+        id,
+        name,
+        path: newPath,
+        branch: "loading...",
+        diffCount: 0,
+        latestCommit: "",
+      };
+
+      setFolders((prev) => {
+        if (prev.find((f) => f.path === newPath)) return prev;
+        return [...prev, newFolder];
+      });
+
+      await api.watchFolder(newPath);
+    } catch (err) {
+      console.error("Duplication failed:", err);
+      alert("Duplication failed");
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
   return (
     <div
       className={`bg-zinc-50 border flex items-stretch relative overflow-hidden shadow-sm transition-all duration-300 ${
@@ -32,7 +65,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       <div className="flex items-center gap-6 flex-1 min-w-0 p-4 opacity-90">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-4 mb-2">
-            <h3 className={`text-base font-bold tracking-tight truncate uppercase ${isBackendConnected ? "text-zinc-800" : "text-zinc-500"}`}>
+            <h3 className={`text-base font-bold tracking-tight truncate ${isBackendConnected ? "text-zinc-800" : "text-zinc-500"}`}>
               {folder.name}
             </h3>
             
@@ -54,6 +87,18 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                     : "bg-zinc-300"
                 }`} />
               </div>
+
+              <button
+                onClick={handleDuplicate}
+                disabled={isDuplicating}
+                className={`px-2 py-0.5 border text-[9px] font-black uppercase tracking-widest transition-all ${
+                  isDuplicating
+                    ? "bg-zinc-100 text-zinc-400 border-zinc-200"
+                    : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-zinc-700 hover:text-zinc-100 hover:border-zinc-700 active:bg-zinc-800"
+                }`}
+              >
+                {isDuplicating ? "DUP..." : "DUP"}
+              </button>
             </div>
 
             {folder.diffCount > 0 && isBackendConnected && (

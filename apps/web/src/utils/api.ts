@@ -39,6 +39,16 @@ export const api = {
     return res.json();
   },
 
+  async duplicateFolder(path: string): Promise<{ success: boolean; newPath: string }> {
+    const res = await fetch(`${API_BASE}/api/duplicate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) throw new Error("Failed to duplicate folder");
+    return res.json();
+  },
+
   getWsUrl() {
     return `${API_BASE.replace("http", "ws")}/ws`;
   }

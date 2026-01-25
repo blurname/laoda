@@ -74,8 +74,11 @@ Options:
 }
 
 const portArgIdx = args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
-if (portArgIdx !== -1 && args[portArgIdx + 1]) {
-  defaultPort = parseInt(args[portArgIdx + 1]);
+if (portArgIdx !== -1) {
+  const nextArg = args[portArgIdx + 1];
+  if (nextArg) {
+    defaultPort = parseInt(nextArg);
+  }
 }
 
 app.use("/*", cors());
@@ -173,6 +176,67 @@ app.post("/api/open/:ide", async (c) => {
   } catch (e) {
     console.error(`Failed to open ${ide}:`, e);
     return c.json({ error: `Failed to open ${ide}` }, 500);
+  }
+});
+
+app.post("/api/duplicate", async (c) => {
+  const { path } = await c.req.json();
+  if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
+
+  try {
+    const parentDir = join(path, "..");
+    const fullName = basename(path);
+    
+    // Check if name already ends with "-number"
+    const match = fullName.match(/^(.*?)-(\d+)$/);
+    const baseName = match ? (match[1] || fullName) : fullName;
+    let counter = match ? parseInt(match[2] || "0") + 1 : 1;
+
+    let newPath = "";
+    while (true) {
+      const newName = `${baseName}-${counter}`;
+      newPath = join(parentDir, newName);
+      if (!existsSync(newPath)) break;
+      counter++;
+    }
+
+    console.log(`Duplicating ${path} to ${newPath}`);
+    
+    // Create target dir
+    execSync(`mkdir -p "${newPath}"`);
+
+    // 1. Copy .git folder (explicitly requested)
+    if (existsSync(join(path, ".git"))) {
+      execSync(`cp -R "${join(path, ".git")}" "${join(newPath, ".git")}"`);
+    }
+
+    // 2. Copy non-ignored files using git ls-files
+    // -c: tracked, -o: untracked, --exclude-standard: respect .gitignore
+    const filesToCopy = execSync(`git ls-files -co --exclude-standard`, { cwd: path })
+      .toString()
+      .split("\n")
+      .filter(f => f.trim().length > 0);
+
+    for (const file of filesToCopy) {
+      const srcFile = join(path, file);
+      const destFile = join(newPath, file);
+      const destDir = join(destFile, "..");
+      
+      if (!existsSync(destDir)) {
+        execSync(`mkdir -p "${destDir}"`);
+      }
+      
+      // Use cp -R to handle potential symlinks or directories if any weirdness occurs
+      // but git ls-files usually gives files.
+      if (existsSync(srcFile)) {
+        execSync(`cp -R "${srcFile}" "${destFile}"`);
+      }
+    }
+
+    return c.json({ success: true, newPath });
+  } catch (e) {
+    console.error("Duplication failed:", e);
+    return c.json({ error: "Duplication failed" }, 500);
   }
 });
 
