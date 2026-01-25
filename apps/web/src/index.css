@@ -16,10 +16,14 @@ body {
 button, 
 select, 
 a, 
-input, 
-textarea,
 [role="button"] {
   cursor: default !important;
+}
+
+/* Allow text selection cursor for inputs and textareas */
+input,
+textarea {
+  cursor: text !important;
 }
 
 /* Scrollbar Styling - Refined Industrial */

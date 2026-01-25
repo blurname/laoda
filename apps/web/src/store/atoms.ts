@@ -15,7 +15,7 @@ export type IDEType = "cursor" | "trae" | "vscode" | null;
 
 export const selectedIDEAtom = atomWithStorage<IDEType>("selected-ide", null);
 
-export type ViewType = "list" | "data";
+export type ViewType = "list" | "data" | "sync";
 export const viewAtom = atomWithStorage<ViewType>(
   "current-view",
   (() => {
@@ -28,6 +28,15 @@ export const viewAtom = atomWithStorage<ViewType>(
     }
   })()
 );
+
+export interface ManagedFile {
+  id: string;
+  filename: string;
+  content: string;
+  targetPattern: string; // The folder name to match
+}
+
+export const managedFilesAtom = atomWithStorage<ManagedFile[]>("managed-files", []);
 
 import { atom } from "jotai";
 export const isConnectedAtom = atom(false);

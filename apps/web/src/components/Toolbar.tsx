@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import { selectedIDEAtom, IDEType, foldersAtom, viewAtom } from "../store/atoms";
+import { selectedIDEAtom, IDEType, foldersAtom, viewAtom, managedFilesAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
 export const Toolbar = () => {
@@ -8,6 +8,7 @@ export const Toolbar = () => {
   const [selectedIDE, setSelectedIDE] = useAtom(selectedIDEAtom);
   const [currentView, setCurrentView] = useAtom(viewAtom);
   const setFolders = useSetAtom(foldersAtom);
+  const setManagedFiles = useSetAtom(managedFilesAtom);
 
   const handleImport = async () => {
     setIsPicking(true);
@@ -40,7 +41,7 @@ export const Toolbar = () => {
   };
 
   return (
-    <header className="bg-zinc-100 border-b border-zinc-300 px-6 py-4 flex items-center justify-between relative z-10 shadow-sm">
+    <header className="bg-zinc-100 border-b border-zinc-300 px-6 py-4 flex items-center justify-between relative z-10 shadow-sm shrink-0">
       <div className="flex items-center gap-10">
         <h1 className="text-xl font-bold text-zinc-900 tracking-tighter uppercase italic">Lead_</h1>
         
@@ -68,37 +69,65 @@ export const Toolbar = () => {
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-1 border border-zinc-300 p-0.5 bg-zinc-200/30">
-          <button
-            onClick={() => setCurrentView("list")}
-            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all ${
-              currentView === "list" 
-                ? "bg-zinc-700 text-zinc-100 shadow-sm" 
-                : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
-            }`}
-          >
-            Terminal
-          </button>
-          <button
-            onClick={() => setCurrentView("data")}
-            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all ${
-              currentView === "data" 
-                ? "bg-zinc-700 text-zinc-100 shadow-sm" 
-                : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
-            }`}
-          >
-            Data
-          </button>
-        </div>
-
+      {/* Middle View Switcher */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 border border-zinc-300 p-0.5 bg-zinc-200/30">
         <button
-          onClick={handleImport}
-          disabled={isPicking}
-          className="bg-zinc-700 hover:bg-zinc-700/80 disabled:bg-zinc-300 text-zinc-100 px-5 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all border border-zinc-700"
+          onClick={() => setCurrentView("list")}
+          className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all ${
+            currentView === "list" 
+              ? "bg-zinc-700 text-zinc-100 shadow-sm" 
+              : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+          }`}
         >
-          {isPicking ? "Processing..." : "Import_Project"}
+          Terminal
         </button>
+        <button
+          onClick={() => setCurrentView("sync")}
+          className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all ${
+            currentView === "sync" 
+              ? "bg-zinc-700 text-zinc-100 shadow-sm" 
+              : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+          }`}
+        >
+          Sync
+        </button>
+        <button
+          onClick={() => setCurrentView("data")}
+          className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest transition-all ${
+            currentView === "data" 
+              ? "bg-zinc-700 text-zinc-100 shadow-sm" 
+              : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
+          }`}
+        >
+          Data
+        </button>
+      </div>
+
+      <div className="flex items-center gap-6">
+        {currentView === "sync" ? (
+          <button
+            onClick={() => {
+              const id = Math.random().toString(36).substring(7);
+              setManagedFiles(prev => [...prev, {
+                id,
+                filename: "",
+                content: "",
+                targetPattern: ""
+              }]);
+            }}
+            className="bg-zinc-700 hover:bg-zinc-700/80 text-zinc-100 px-5 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all border border-zinc-700"
+          >
+            Create_Managed_File
+          </button>
+        ) : (
+          <button
+            onClick={handleImport}
+            disabled={isPicking}
+            className="bg-zinc-700 hover:bg-zinc-700/80 disabled:bg-zinc-300 text-zinc-100 px-5 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all border border-zinc-700"
+          >
+            {isPicking ? "Processing..." : "Import_Project"}
+          </button>
+        )}
       </div>
     </header>
   );

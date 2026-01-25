@@ -49,6 +49,16 @@ export const api = {
     return res.json();
   },
 
+  async writeFile(path: string, filename: string, content: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/api/write-file`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, filename, content }),
+    });
+    if (!res.ok) throw new Error("Failed to write file");
+    return res.json();
+  },
+
   getWsUrl() {
     return `${API_BASE.replace("http", "ws")}/ws`;
   }

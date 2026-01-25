@@ -3,6 +3,7 @@ import { useAtomValue } from "jotai";
 import { Toolbar } from "./components/Toolbar";
 import { FolderList } from "./components/FolderList";
 import { DataView } from "./components/DataView";
+import { SyncView } from "./components/SyncView";
 import { viewAtom, isConnectedAtom } from "./store/atoms";
 import { useSocket } from "./hooks/useSocket";
 
@@ -19,8 +20,12 @@ function App() {
           <div className="h-full overflow-auto pr-1">
             <FolderList />
           </div>
-        ) : (
+        ) : currentView === "data" ? (
           <DataView />
+        ) : (
+          <div className="h-full overflow-auto pr-1">
+            <SyncView />
+          </div>
         )}
       </main>
       <footer className="bg-zinc-100 border-t border-zinc-300 px-4 py-1.5 flex justify-between items-center shadow-[0_-1px_3px_rgba(0,0,0,0.05)] shrink-0">

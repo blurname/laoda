@@ -179,6 +179,22 @@ app.post("/api/open/:ide", async (c) => {
   }
 });
 
+app.post("/api/write-file", async (c) => {
+  const { path, filename, content } = await c.req.json();
+  if (!path || !filename) return c.json({ error: "Missing parameters" }, 400);
+  
+  try {
+    const fullPath = join(path, filename);
+    console.log(`Writing managed file to: ${fullPath}`);
+    const buffer = Buffer.from(content, "utf-8");
+    await Bun.write(fullPath, buffer);
+    return c.json({ success: true });
+  } catch (e) {
+    console.error("Failed to write file:", e);
+    return c.json({ error: "Write failed" }, 500);
+  }
+});
+
 app.post("/api/duplicate", async (c) => {
   const { path } = await c.req.json();
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
