@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { watch } from "chokidar";
 import { join, basename, relative } from "path";
-import { readFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, existsSync, readdirSync, mkdirSync, copyFileSync, cpSync, lstatSync, readlinkSync, symlinkSync } from "fs";
 import { execSync } from "child_process";
 
 // Optional embedded assets for single-binary distribution
@@ -216,6 +216,18 @@ app.post("/api/duplicate", async (c) => {
       counter++;
     }
 
+    // Capture local git config before copying
+    const getLocalGitConfig = (key: string, cwd: string) => {
+      try {
+        return execSync(`git config --local ${key}`, { cwd }).toString().trim();
+      } catch {
+        return null;
+      }
+    };
+
+    const localName = getLocalGitConfig("user.name", path);
+    const localEmail = getLocalGitConfig("user.email", path);
+
     console.log(`Duplicating ${path} to ${newPath}`);
     
     // Create target dir
@@ -223,14 +235,15 @@ app.post("/api/duplicate", async (c) => {
 
     // 1. Copy .git folder (explicitly requested)
     if (existsSync(join(path, ".git"))) {
-      execSync(`cp -R "${join(path, ".git")}" "${join(newPath, ".git")}"`);
+      cpSync(join(path, ".git"), join(newPath, ".git"), { recursive: true });
     }
 
     // 2. Copy non-ignored files using git ls-files
+    // -z: use null-byte as delimiter to avoid quoting paths with special characters
     // -c: tracked, -o: untracked, --exclude-standard: respect .gitignore
-    const filesToCopy = execSync(`git ls-files -co --exclude-standard`, { cwd: path })
+    const filesToCopy = execSync(`git ls-files -z -co --exclude-standard`, { cwd: path })
       .toString()
-      .split("\n")
+      .split("\0")
       .filter(f => f.trim().length > 0);
 
     for (const file of filesToCopy) {
@@ -239,14 +252,32 @@ app.post("/api/duplicate", async (c) => {
       const destDir = join(destFile, "..");
       
       if (!existsSync(destDir)) {
-        execSync(`mkdir -p "${destDir}"`);
+        mkdirSync(destDir, { recursive: true });
       }
       
-      // Use cp -R to handle potential symlinks or directories if any weirdness occurs
-      // but git ls-files usually gives files.
-      if (existsSync(srcFile)) {
-        execSync(`cp -R "${srcFile}" "${destFile}"`);
+      if (existsSync(srcFile) || lstatSync(srcFile).isSymbolicLink()) {
+        try {
+          const stats = lstatSync(srcFile);
+          if (stats.isSymbolicLink()) {
+            // Preserve symbolic link
+            const target = readlinkSync(srcFile);
+            symlinkSync(target, destFile);
+          } else {
+            // Use copyFileSync to preserve file mode/permissions
+            copyFileSync(srcFile, destFile);
+          }
+        } catch (err) {
+          console.error(`Failed to copy file/link ${srcFile}:`, err);
+        }
       }
+    }
+
+    // Apply captured git config to the new folder
+    if (localName) {
+      execSync(`git config --local user.name "${localName}"`, { cwd: newPath });
+    }
+    if (localEmail) {
+      execSync(`git config --local user.email "${localEmail}"`, { cwd: newPath });
     }
 
     return c.json({ success: true, newPath });
