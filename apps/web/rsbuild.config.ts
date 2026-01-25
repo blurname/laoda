@@ -7,6 +7,7 @@ export default defineConfig({
     port: 26123,
   },
   html: {
-    title: "Folder Watcher",
+    title: "LEAD",
+    favicon: "./src/assets/favicon.svg",
   },
 });
