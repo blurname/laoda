@@ -59,6 +59,16 @@ export const api = {
     return res.json();
   },
 
+  async deleteFolder(path: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/api/delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    if (!res.ok) throw new Error("Failed to delete folder");
+    return res.json();
+  },
+
   getWsUrl() {
     return `${API_BASE.replace("http", "ws")}/ws`;
   }

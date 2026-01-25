@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { watch } from "chokidar";
 import { join, basename, relative } from "path";
-import { readFileSync, existsSync, readdirSync, mkdirSync, copyFileSync, cpSync, lstatSync, readlinkSync, symlinkSync } from "fs";
+import { readFileSync, existsSync, readdirSync, mkdirSync, copyFileSync, cpSync, lstatSync, readlinkSync, symlinkSync, rmSync } from "fs";
 import { execSync } from "child_process";
 
 // Optional embedded assets for single-binary distribution
@@ -176,6 +176,32 @@ app.post("/api/open/:ide", async (c) => {
   } catch (e) {
     console.error(`Failed to open ${ide}:`, e);
     return c.json({ error: `Failed to open ${ide}` }, 500);
+  }
+});
+
+app.post("/api/delete", async (c) => {
+  const { path } = await c.req.json();
+  if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
+
+  try {
+    console.log(`Deleting folder: ${path}`);
+    rmSync(path, { recursive: true, force: true });
+    
+    // Cleanup internal state
+    const id = Buffer.from(path).toString("base64");
+    folders.delete(id);
+    const watcherInfo = watchers.get(id);
+    if (watcherInfo) {
+      watcherInfo.watcher.close();
+      watcherInfo.gitWatcher.close();
+      watchers.delete(id);
+    }
+    
+    broadcastFolders();
+    return c.json({ success: true });
+  } catch (e) {
+    console.error("Deletion failed:", e);
+    return c.json({ error: "Deletion failed" }, 500);
   }
 });
 

@@ -12,6 +12,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
   const selectedIDE = useAtomValue(selectedIDEAtom);
   const setFolders = useSetAtom(foldersAtom);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleOpenIDE = async () => {
     if (!selectedIDE) {
@@ -53,6 +54,23 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       alert("Duplication failed");
     } finally {
       setIsDuplicating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    const confirmDelete = window.confirm(`Are you sure you want to permanently DELETE the folder at:\n${folder.path}?\n\nThis action cannot be undone.`);
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await api.deleteFolder(folder.path);
+      setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    } catch (err) {
+      console.error("Deletion failed:", err);
+      alert("Deletion failed");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -98,6 +116,18 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                 }`}
               >
                 {isDuplicating ? "DUP..." : "DUP"}
+              </button>
+
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className={`px-2 py-0.5 border text-[9px] font-black uppercase tracking-widest transition-all ${
+                  isDeleting
+                    ? "bg-zinc-100 text-zinc-400 border-zinc-200"
+                    : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-red-600 hover:text-white hover:border-red-700 active:bg-red-700"
+                }`}
+              >
+                {isDeleting ? "DEL..." : "DEL"}
               </button>
             </div>
 
