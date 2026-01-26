@@ -1,10 +1,12 @@
 {
-  "name": "lead-monorepo",
-  "private": true,
+  "name": "lead",
+  "version": "0.0.0",
   "workspaces": [
     "apps/*"
   ],
   "scripts": {
+    "version-bump": "cox root-version-bump",
+    "tag-push": "cox tag-push",
     "dev:web": "bun --cwd apps/web dev",
     "dev:server": "bun --cwd apps/server dev",
     "dev": "bun --filter \"*\" dev",
@@ -19,6 +21,7 @@
   "devDependencies": {
     "oxfmt": "^0.26.0",
     "oxlint": "latest",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "coxswain": "1.0.11"
   }
 }

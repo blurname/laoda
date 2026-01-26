@@ -5,6 +5,7 @@
     "": {
       "name": "lead-monorepo",
       "devDependencies": {
+        "coxswain": "1.0.11",
         "oxfmt": "^0.26.0",
         "oxlint": "latest",
         "typescript": "^5.0.0",
@@ -47,6 +48,8 @@
   },
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
+
+    "@blurname/core": ["@blurname/core@1.0.11", "", {}, "sha512-RooFV6bwvL1hB/2MyQQVh3ObGrvMPJRYDL9aTFwQRn5LENjn1iq3yL8a3LtSZDvsxWs4svSWnzKxWCD2PvUnOQ=="],
 
     "@emnapi/core": ["@emnapi/core@1.8.1", "", { "dependencies": { "@emnapi/wasi-threads": "1.1.0", "tslib": "^2.4.0" } }, "sha512-AvT9QFpxK0Zd8J0jopedNm+w/2fIzvtPKPjqyw9jwvBaReTTqPBk9Hixaz7KbjimP+QNz605/XnjFcDAL2pqBg=="],
 
@@ -187,6 +190,8 @@
     "commander": ["commander@4.1.1", "", {}, "sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA=="],
 
     "core-js": ["core-js@3.47.0", "", {}, "sha512-c3Q2VVkGAUyupsjRnaNX6u8Dq2vAdzm9iuPj5FW0fRxzlxgq9Q39MDq10IvmQSpLgHQNyQzQmOo6bgGHmH3NNg=="],
+
+    "coxswain": ["coxswain@1.0.11", "", { "dependencies": { "@blurname/core": "*" }, "peerDependencies": { "typescript": "^5" }, "bin": { "cox": "dist/monorepo-main.cjs" } }, "sha512-IfJFR+gsnm4DSxZXir8X/8COqi/5GZPHgsi1PIPB6GuqaYiTdzsFx4839nYz28chmV9o/v7/u1hvCg2qSfDULw=="],
 
     "cssesc": ["cssesc@3.0.0", "", { "bin": { "cssesc": "bin/cssesc" } }, "sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg=="],
 
