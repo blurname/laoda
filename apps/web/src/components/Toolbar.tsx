@@ -1,7 +1,16 @@
 import React, { useState, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import { selectedIDEAtom, IDEType, foldersAtom, viewAtom, managedFilesAtom } from "../store/atoms";
+import { selectedIDEAtom, foldersAtom, viewAtom, managedFilesAtom } from "../store/atoms";
 import { api } from "../utils/api";
+
+const SUPPORTED_IDES = [
+  "Cursor",
+  "VSCode",
+  "Trae",
+  "Qoder",
+  "Antigravity",
+  
+];
 
 export const Toolbar = () => {
   const [isPicking, setIsPicking] = useState(false);
@@ -58,16 +67,18 @@ export const Toolbar = () => {
           <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] border-r border-zinc-200">
             <span>IDE</span>
           </div>
-          <div className="relative">
+          <div className="relative border-r border-zinc-200">
             <select
-              value={selectedIDE || ""}
-              onChange={(e) => setSelectedIDE((e.target.value as IDEType) || null)}
-              className="appearance-none bg-transparent pr-10 pl-4 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none uppercase tracking-wide"
+              value={SUPPORTED_IDES.includes(selectedIDE || "") ? selectedIDE || "" : ""}
+              onChange={(e) => e.target.value && setSelectedIDE(e.target.value)}
+              className="appearance-none bg-transparent pr-10 pl-4 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none uppercase tracking-wide cursor-default"
             >
-              <option value="">None</option>
-              <option value="cursor">Cursor</option>
-              <option value="trae">Trae</option>
-              <option value="vscode">VSCode</option>
+              <option value="" disabled>Select...</option>
+              {SUPPORTED_IDES.map((ide) => (
+                <option key={ide} value={ide}>
+                  {ide}
+                </option>
+              ))}
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
               <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
@@ -75,6 +86,13 @@ export const Toolbar = () => {
               </svg>
             </div>
           </div>
+          <input
+            type="text"
+            value={selectedIDE || ""}
+            onChange={(e) => setSelectedIDE(e.target.value || null)}
+            placeholder="CUSTOM_IDE_NAME"
+            className="bg-transparent px-4 py-1.5 text-[10px] font-bold text-zinc-700 focus:outline-none uppercase tracking-wider w-36 placeholder:text-zinc-400"
+          />
         </div>
       </div>
 

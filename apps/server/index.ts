@@ -20,7 +20,7 @@ try {
 
 interface OSAdapter {
   pickFolder(): Promise<string | null>;
-  openInIDE(ide: "cursor" | "trae" | "vscode", path: string): Promise<void>;
+  openInIDE(appName: string, path: string): Promise<void>;
 }
 
 class MacOSAdapter implements OSAdapter {
@@ -46,13 +46,7 @@ class MacOSAdapter implements OSAdapter {
     }
   }
 
-  async openInIDE(ide: "cursor" | "trae" | "vscode", path: string): Promise<void> {
-    const appName = {
-      cursor: "Cursor",
-      trae: "Trae",
-      vscode: "Visual Studio Code",
-    }[ide];
-
+  async openInIDE(appName: string, path: string): Promise<void> {
     Bun.spawn(["open", "-a", appName, path], {
       stdout: "inherit",
       stderr: "inherit",
@@ -175,19 +169,19 @@ app.post("/api/pick-folder", async (c) => {
 });
 
 // API to open folder in IDEs
-app.post("/api/open/:ide", async (c) => {
-  const ide = c.req.param("ide") as "cursor" | "trae" | "vscode";
-  const { path } = await c.req.json();
+app.post("/api/open/vscode_family", async (c) => {
+  const { path, appName } = await c.req.json();
   
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
+  if (!appName) return c.json({ error: "Missing appName" }, 400);
   
-  console.log(`Opening ${ide} for path:`, path);
+  console.log(`Opening ${appName} for path:`, path);
   try {
-    await os.openInIDE(ide, path);
+    await os.openInIDE(appName, path);
     return c.json({ success: true });
   } catch (e) {
-    console.error(`Failed to open ${ide}:`, e);
-    return c.json({ error: `Failed to open ${ide}` }, 500);
+    console.error(`Failed to open ${appName}:`, e);
+    return c.json({ error: `Failed to open ${appName}` }, 500);
   }
 });
 

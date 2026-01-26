@@ -12,9 +12,7 @@ export interface FolderInfo {
 
 export const foldersAtom = atomWithStorage<FolderInfo[]>("imported-folders", []);
 
-export type IDEType = "cursor" | "trae" | "vscode" | null;
-
-export const selectedIDEAtom = atomWithStorage<IDEType>("selected-ide", null);
+export const selectedIDEAtom = atomWithStorage<string | null>("selected-ide", "Cursor");
 
 export type ViewType = "list" | "data" | "sync";
 export const viewAtom = atomWithStorage<ViewType>(

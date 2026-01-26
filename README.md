@@ -8,7 +8,7 @@ AI IDEs are under your lead, laoda
 
 ## features
 - **Terminal**: Real-time Git status (branch, diffs, commits) for all projects.
-- **Go**: One-click open in Cursor, Trae, or VSCode.
+- **Go**: One-click open in VSCode family IDEs (Cursor, Trae, VSCode, etc.).
 - **Sync**: Manage and inject config files (like `.env.local`) across repos.
 - **Duplicate**: Smart folder cloning with Git config & symlinks preservation.
 - **Move**: Bulk move projects to new parent directories.

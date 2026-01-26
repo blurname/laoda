@@ -29,13 +29,13 @@ export const api = {
     return res.json();
   },
 
-  async openInIDE(ide: string, path: string) {
-    const res = await fetch(`${API_BASE}/api/open/${ide}`, {
+  async openInIDE(appName: string, path: string) {
+    const res = await fetch(`${API_BASE}/api/open/vscode_family`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path, appName }),
     });
-    if (!res.ok) throw new Error(`Failed to open in ${ide}`);
+    if (!res.ok) throw new Error(`Failed to open in ${appName}`);
     return res.json();
   },
 
