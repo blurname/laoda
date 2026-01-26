@@ -73,10 +73,10 @@ let defaultPort = 26124;
 
 if (args.includes("--help") || args.includes("-h")) {
   console.log(`
-Lead - Project Manager CLI
+laoda - Project Manager CLI
 
 Usage:
-  lead [options]
+  laoda [options]
 
 Options:
   --port, -p <number>  Port to run the server on (default: 26124)
@@ -545,4 +545,4 @@ Bun.serve({
   },
 });
 
-console.log(`Lead Server running at http://localhost:${port}`);
+console.log(`laoda Server running at http://localhost:${port}`);

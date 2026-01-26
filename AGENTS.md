@@ -1,4 +1,4 @@
-# Lead - Project Manifesto
+# laoda - Project Manifesto
 
 极简本地项目管理中心：实时监控 Git 状态，一键启动 IDE。
 

@@ -7,7 +7,7 @@ export default defineConfig({
     port: 26123,
   },
   html: {
-    title: "LEAD",
+    title: "laoda",
     favicon: "./src/assets/favicon.svg",
   },
 });

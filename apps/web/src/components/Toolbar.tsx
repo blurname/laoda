@@ -52,7 +52,7 @@ export const Toolbar = () => {
   return (
     <header className="bg-zinc-100 border-b border-zinc-300 px-6 py-4 flex items-center justify-between relative z-10 shadow-sm shrink-0">
       <div className="flex items-center gap-10">
-        <h1 className="text-xl font-bold text-zinc-900 tracking-tighter uppercase italic">Lead_</h1>
+        <h1 className="text-xl font-bold text-zinc-900 tracking-tighter uppercase italic">laoda_</h1>
         
         <div className="flex items-center gap-0 border border-zinc-200 bg-zinc-200/50">
           <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] border-r border-zinc-200">
