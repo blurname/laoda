@@ -546,8 +546,3 @@ Bun.serve({
 });
 
 console.log(`Lead Server running at http://localhost:${port}`);
-
-// Auto open browser if not in dev mode
-if (process.env.NODE_ENV === "production") {
-  Bun.spawn(["open", `http://localhost:${port}`]);
-}

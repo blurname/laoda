@@ -2,10 +2,10 @@
   "name": "laoda",
   "version": "0.0.0",
   "bin": {
-    "lead": "output-gitignore/lead"
+    "laoda": "output-gitignore/laoda"
   },
   "files": [
-    "output-gitignore/lead",
+    "output-gitignore/laoda",
     "README.md"
   ],
   "workspaces": [
@@ -14,14 +14,14 @@
   "scripts": {
     "version-bump": "cox root-version-bump",
     "tag-push": "cox tag-push",
+    "dev": "bun --filter \"*\" dev",
     "dev:web": "bun --cwd apps/web dev",
     "dev:server": "bun --cwd apps/server dev",
-    "dev": "bun --filter \"*\" dev",
+    "build": "bun run build:web && bun run build:embed && bun run build:server",
     "build:web": "bun --cwd apps/web build",
     "build:embed": "bun scripts/embed-assets.ts",
-    "build:server": "mkdir -p output-gitignore && bun build ./apps/server/index.ts --compile --outfile output-gitignore/lead",
-    "build": "bun run build:web && bun run build:embed && bun run build:server",
-    "start": "NODE_ENV=production ./output-gitignore/lead",
+    "build:server": "mkdir -p output-gitignore && bun build ./apps/server/index.ts --compile --outfile output-gitignore/laoda",
+    "start": "NODE_ENV=production ./output-gitignore/laoda",
     "lint": "oxlint -c .oxlintrc.json",
     "format": "oxfmt ."
   },
