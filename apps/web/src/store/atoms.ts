@@ -1,3 +1,4 @@
+import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
 export interface FolderInfo {
@@ -42,5 +43,4 @@ export const isSortedByNameAtom = atomWithStorage<boolean>("is-sorted-by-name", 
 export const isMultiSelectModeAtom = atom(false);
 export const selectedPathsAtom = atom<string[]>([]);
 
-import { atom } from "jotai";
 export const isConnectedAtom = atom(false);
