@@ -1,0 +1,38 @@
+name: "ci-test-2312"
+on: { push: { branches: [ "**" ], tags: [ "v*" ] } } # use `v0.0.0` tag pattern # https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#onpushpull_requestbranchestags
+env: { "IS_CI": true }
+# 必须添加这个权限块
+jobs:
+  "publish-tag": # job id
+    if: "github.ref_type == 'tag'" # only run on git tag push
+    runs-on: "ubuntu-latest"
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - { uses: "actions/checkout@v5", with: { fetch-depth: 0 } } # https://github.com/actions/checkout
+      # - { uses: "actions/setup-node@v4", with: { node-version: "20.x", cache: "npm" } } # LTS version & npm cache # https://github.com/actions/setup-node
+      - uses: "actions/setup-node@v4"
+        with:
+          node-version: "20.x"
+          registry-url: "https://registry.npmjs.org"
+      - run: npm install -g npm@latest
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bun run build
+
+      - name: Publish to npm
+        run: |
+          # 获取 package.json 中的版本号
+          VERSION=$(node -p "require('./package.json').version")
+          
+          # 判断版本号是否包含连字符 (如 1.0.0-beta)
+          if [[ $VERSION == *"-"* ]]; then
+            echo "检测到预发布版本，正在发布到 next 标签..."
+            npm publish --provenance --access public --tag next
+          else
+            echo "检测到正式版本，正在发布到 latest 标签..."
+            npm publish --provenance --access public
+          fi
+
