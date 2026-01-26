@@ -1,3 +1,3 @@
-# lead
+# laoda
 
-AI IDEs is under your lead, leader
+AI IDEs is under your lead, laoda
