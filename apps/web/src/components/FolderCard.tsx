@@ -145,32 +145,32 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                   <button
                     onClick={handleDuplicate}
                     disabled={isDuplicating}
-                    className={`px-2 py-0.5 border text-[9px] font-black uppercase tracking-widest transition-all ${
+                    className={`px-2 py-0.5 border text-[9px] font-black capitalize tracking-widest transition-all ${
                       isDuplicating
                         ? "bg-zinc-100 text-zinc-400 border-zinc-200"
                         : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-zinc-700 hover:text-zinc-100 hover:border-zinc-700 active:bg-zinc-800"
                     }`}
                   >
-                    {isDuplicating ? "DUP..." : "DUP"}
+                    {isDuplicating ? "Dup..." : "Dup"}
                   </button>
 
                   <button
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className={`px-2 py-0.5 border text-[9px] font-black uppercase tracking-widest transition-all ${
+                    className={`px-2 py-0.5 border text-[9px] font-black capitalize tracking-widest transition-all ${
                       isDeleting
                         ? "bg-zinc-100 text-zinc-400 border-zinc-200"
                         : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-red-600 hover:text-white hover:border-red-700 active:bg-red-700"
                     }`}
                   >
-                    {isDeleting ? "DEL..." : "DEL"}
+                    {isDeleting ? "Del..." : "Del"}
                   </button>
                 </>
               )}
             </div>
 
             {folder.diffCount > 0 && isBackendConnected && (
-              <div className="text-[10px] font-black text-amber-500 bg-zinc-700 px-2 py-0.5 border border-zinc-800 uppercase tracking-tighter shadow-sm">
+              <div className="text-[10px] font-black text-amber-500 bg-zinc-700 px-2 py-0.5 border border-zinc-800 capitalize tracking-tighter shadow-sm">
                 {folder.diffCount} diff
               </div>
             )}
@@ -213,14 +213,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                 <path d="M3 6L5 8L9 4" stroke="currentColor" strokeWidth="2" fill="none" />
               </svg>
             ) : (
-              <span className="text-[9px] font-black uppercase">ADD</span>
+              <span className="text-[9px] font-black capitalize">Add</span>
             )
           ) : selectedIDE ? (
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
               <path d="M3 1L10 6L3 11V1Z" />
             </svg>
           ) : (
-            <span className="text-[10px] font-black uppercase tracking-[0.1em]">OFF</span>
+            <span className="text-[10px] font-black capitalize tracking-[0.1em]">Off</span>
           )}
         </div>
       </div>

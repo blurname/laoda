@@ -63,13 +63,13 @@ const ManagedFileCard: React.FC<{ file: ManagedFile }> = ({ file }) => {
             }`}
             placeholder="Filename (e.g. .env.local)"
           />
-          <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-tighter bg-zinc-200 px-1.5 py-0.5">
+          <span className="text-[9px] text-zinc-400 font-bold capitalize tracking-tighter bg-zinc-200 px-1.5 py-0.5">
             Root_Only
           </span>
         </div>
         <button 
           onClick={handleRemove}
-          className="text-zinc-400 hover:text-red-500 text-[10px] font-black uppercase tracking-widest transition-colors"
+          className="text-zinc-400 hover:text-red-500 text-[10px] font-black capitalize tracking-widest transition-colors"
         >
           Remove_File
         </button>
@@ -89,7 +89,7 @@ const ManagedFileCard: React.FC<{ file: ManagedFile }> = ({ file }) => {
         {/* Association & Sync */}
         <div className="w-72 bg-zinc-100/30 flex flex-col">
           <div className="p-4 flex-1 overflow-auto">
-            <label className="block text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2">
+            <label className="block text-[9px] font-black text-zinc-400 capitalize tracking-widest mb-2">
               Target_Folder_Match
             </label>
             <input
@@ -105,7 +105,7 @@ const ManagedFileCard: React.FC<{ file: ManagedFile }> = ({ file }) => {
             
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">
+                <span className="text-[9px] font-black text-zinc-400 capitalize tracking-widest">
                   Matched_Folders
                 </span>
                 <span className="bg-zinc-200 px-1 text-[10px] font-mono text-zinc-600">
@@ -129,7 +129,7 @@ const ManagedFileCard: React.FC<{ file: ManagedFile }> = ({ file }) => {
             <button
               onClick={handleSync}
               disabled={syncStatus !== "idle" || matchedFolders.length === 0 || !file.filename}
-              className={`w-full py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all border ${
+              className={`w-full py-2 text-[10px] font-black capitalize tracking-[0.2em] transition-all border ${
                 syncStatus === "success"
                   ? "bg-green-600 text-white border-green-700 shadow-[0_0_8px_rgba(34,197,94,0.4)]"
                   : syncStatus === "error"
@@ -159,7 +159,7 @@ export const SyncView: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 h-full">
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
+        <h2 className="text-[10px] font-black text-zinc-500 capitalize tracking-[0.2em] flex items-center gap-2">
           Managed_Configurations
           <span className="bg-zinc-300 px-1 rounded-none text-zinc-600 font-mono">[{managedFiles.length}]</span>
         </h2>
@@ -167,7 +167,7 @@ export const SyncView: React.FC = () => {
 
       {managedFiles.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 border border-zinc-300 bg-zinc-50 text-zinc-400">
-          <p className="text-[10px] uppercase tracking-widest font-bold">No managed files registered.</p>
+          <p className="text-[10px] capitalize tracking-widest font-bold">No managed files registered.</p>
           <p className="text-[9px] mt-2 opacity-70">Use the toolbar to create a new managed file.</p>
         </div>
       ) : (

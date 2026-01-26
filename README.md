@@ -7,12 +7,17 @@ AI IDEs are under your lead, laoda
 3. open `http://localhost:26124`
 
 ## features
-- **Terminal**: Real-time Git status (branch, diffs, commits) for all projects.
-- **Go**: One-click open in VSCode family IDEs (Cursor, Trae, VSCode, etc.).
-- **Sync**: Manage and inject config files (like `.env.local`) across repos.
-- **Duplicate**: Smart folder cloning with Git config & symlinks preservation.
-- **Move**: Bulk move projects to new parent directories.
-- **Data**: Raw localStorage view for registry management.
+### Terminal
+- **Real-time Monitoring**: Track Git status (branch, diffs, latest commit) across all projects instantly.
+- **One-click Launch**: Open any project in your preferred VSCode family IDE (Cursor, Trae, VSCode, etc.).
+- **Smart Ops**: Duplicate projects with Git config/symlinks preservation, delete folders, or bulk move projects.
+
+### Sync
+- **Unified Config**: Manage common configuration files (like `.env.local`) from a single dashboard.
+- **Auto Distribution**: Sync updates to all matched project roots via intelligent pattern matching.
+
+### Data
+- **Registry Mirror**: Raw view of `localStorage` data for direct inspection and manual verification.
 
 ## philosophy
 one git repo, one folder, one AI running

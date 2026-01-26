@@ -20,7 +20,7 @@ export const DataView: React.FC = () => {
   return (
     <div className="bg-zinc-50 border border-zinc-300 shadow-sm overflow-hidden h-full flex flex-col">
       <div className="bg-zinc-100 border-b border-zinc-300 px-4 py-2 flex justify-between items-center">
-        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Storage_Raw_Data</h2>
+        <h2 className="text-[10px] font-black capitalize tracking-[0.2em] text-zinc-600">Storage_Raw_Data</h2>
         <div className="text-[9px] font-mono text-zinc-400">
           Size: {new Blob([JSON.stringify(storageData)]).size} bytes
         </div>
