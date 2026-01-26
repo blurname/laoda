@@ -49,6 +49,16 @@ export const api = {
     return res.json();
   },
 
+  async moveBulk(paths: string[], targetParent: string): Promise<{ results: any[] }> {
+    const res = await fetch(`${API_BASE}/api/move-bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths, targetParent }),
+    });
+    if (!res.ok) throw new Error("Failed to move folders");
+    return res.json();
+  },
+
   async writeFile(path: string, filename: string, content: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/api/write-file`, {
       method: "POST",

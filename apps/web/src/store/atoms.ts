@@ -39,6 +39,8 @@ export interface ManagedFile {
 export const managedFilesAtom = atomWithStorage<ManagedFile[]>("managed-files", []);
 
 export const isSortedByNameAtom = atomWithStorage<boolean>("is-sorted-by-name", false);
+export const isMultiSelectModeAtom = atom(false);
+export const selectedPathsAtom = atom<string[]>([]);
 
 import { atom } from "jotai";
 export const isConnectedAtom = atom(false);

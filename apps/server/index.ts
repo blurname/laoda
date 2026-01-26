@@ -24,14 +24,26 @@ interface OSAdapter {
 }
 
 class MacOSAdapter implements OSAdapter {
+  private isPickerOpen = false;
+
   async pickFolder(): Promise<string | null> {
-    const proc = Bun.spawn([
-      "osascript",
-      "-e",
-      'POSIX path of (choose folder with prompt "Select a folder")',
-    ]);
-    const path = (await new Response(proc.stdout).text()).trim();
-    return path || null;
+    if (this.isPickerOpen) {
+      console.log("Picker already open, ignoring request.");
+      return null;
+    }
+
+    this.isPickerOpen = true;
+    try {
+      const proc = Bun.spawn([
+        "osascript",
+        "-e",
+        'POSIX path of (choose folder with prompt "Select a folder")',
+      ]);
+      const path = (await new Response(proc.stdout).text()).trim();
+      return path || null;
+    } finally {
+      this.isPickerOpen = false;
+    }
   }
 
   async openInIDE(ide: "cursor" | "trae" | "vscode", path: string): Promise<void> {
@@ -221,6 +233,116 @@ app.post("/api/write-file", async (c) => {
   }
 });
 
+function copyFolderRobustly(src: string, dest: string) {
+  if (!existsSync(src)) return;
+
+  // 1. Create target dir
+  if (!existsSync(dest)) {
+    mkdirSync(dest, { recursive: true });
+  }
+
+  // 2. Capture local git config
+  const getLocalGitConfig = (key: string, cwd: string) => {
+    try {
+      return execSync(`git config --local ${key}`, { cwd }).toString().trim();
+    } catch {
+      return null;
+    }
+  };
+
+  const localName = getLocalGitConfig("user.name", src);
+  const localEmail = getLocalGitConfig("user.email", src);
+
+  // 3. Copy .git folder (explicitly requested)
+  if (existsSync(join(src, ".git"))) {
+    cpSync(join(src, ".git"), join(dest, ".git"), { recursive: true });
+  }
+
+  // 4. Copy non-ignored files using git ls-files
+  const filesToCopy = execSync(`git ls-files -z -co --exclude-standard`, { cwd: src })
+    .toString()
+    .split("\0")
+    .filter(f => f.trim().length > 0);
+
+  for (const file of filesToCopy) {
+    const srcFile = join(src, file);
+    const destFile = join(dest, file);
+    const destDir = join(destFile, "..");
+
+    if (!existsSync(destDir)) {
+      mkdirSync(destDir, { recursive: true });
+    }
+
+    if (existsSync(srcFile) || lstatSync(srcFile).isSymbolicLink()) {
+      try {
+        const stats = lstatSync(srcFile);
+        if (stats.isSymbolicLink()) {
+          const target = readlinkSync(srcFile);
+          symlinkSync(target, destFile);
+        } else {
+          copyFileSync(srcFile, destFile);
+        }
+      } catch (err) {
+        console.error(`Failed to copy file/link ${srcFile}:`, err);
+      }
+    }
+  }
+
+  // 5. Apply captured git config
+  if (localName) {
+    execSync(`git config --local user.name "${localName}"`, { cwd: dest });
+  }
+  if (localEmail) {
+    execSync(`git config --local user.email "${localEmail}"`, { cwd: dest });
+  }
+}
+
+app.post("/api/move-bulk", async (c) => {
+  const { paths, targetParent } = await c.req.json();
+  if (!Array.isArray(paths) || !targetParent || !existsSync(targetParent)) {
+    return c.json({ error: "Invalid parameters" }, 400);
+  }
+
+  const results = [];
+  for (const src of paths) {
+    if (!existsSync(src)) continue;
+    
+    const folderName = basename(src);
+    const dest = join(targetParent, folderName);
+    
+    if (existsSync(dest)) {
+      results.push({ path: src, success: false, error: "Target exists" });
+      continue;
+    }
+
+    try {
+      console.log(`Moving ${src} to ${dest}`);
+      copyFolderRobustly(src, dest);
+      
+      // Cleanup original
+      rmSync(src, { recursive: true, force: true });
+      
+      // Cleanup internal state
+      const id = Buffer.from(src).toString("base64");
+      folders.delete(id);
+      const watcherInfo = watchers.get(id);
+      if (watcherInfo) {
+        watcherInfo.watcher.close();
+        watcherInfo.gitWatcher.close();
+        watchers.delete(id);
+      }
+
+      results.push({ path: src, success: true, newPath: dest });
+    } catch (e: any) {
+      console.error(`Move failed for ${src}:`, e);
+      results.push({ path: src, success: false, error: e.message });
+    }
+  }
+
+  broadcastFolders();
+  return c.json({ results });
+});
+
 app.post("/api/duplicate", async (c) => {
   const { path } = await c.req.json();
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
@@ -242,69 +364,8 @@ app.post("/api/duplicate", async (c) => {
       counter++;
     }
 
-    // Capture local git config before copying
-    const getLocalGitConfig = (key: string, cwd: string) => {
-      try {
-        return execSync(`git config --local ${key}`, { cwd }).toString().trim();
-      } catch {
-        return null;
-      }
-    };
-
-    const localName = getLocalGitConfig("user.name", path);
-    const localEmail = getLocalGitConfig("user.email", path);
-
     console.log(`Duplicating ${path} to ${newPath}`);
-    
-    // Create target dir
-    execSync(`mkdir -p "${newPath}"`);
-
-    // 1. Copy .git folder (explicitly requested)
-    if (existsSync(join(path, ".git"))) {
-      cpSync(join(path, ".git"), join(newPath, ".git"), { recursive: true });
-    }
-
-    // 2. Copy non-ignored files using git ls-files
-    // -z: use null-byte as delimiter to avoid quoting paths with special characters
-    // -c: tracked, -o: untracked, --exclude-standard: respect .gitignore
-    const filesToCopy = execSync(`git ls-files -z -co --exclude-standard`, { cwd: path })
-      .toString()
-      .split("\0")
-      .filter(f => f.trim().length > 0);
-
-    for (const file of filesToCopy) {
-      const srcFile = join(path, file);
-      const destFile = join(newPath, file);
-      const destDir = join(destFile, "..");
-      
-      if (!existsSync(destDir)) {
-        mkdirSync(destDir, { recursive: true });
-      }
-      
-      if (existsSync(srcFile) || lstatSync(srcFile).isSymbolicLink()) {
-        try {
-          const stats = lstatSync(srcFile);
-          if (stats.isSymbolicLink()) {
-            // Preserve symbolic link
-            const target = readlinkSync(srcFile);
-            symlinkSync(target, destFile);
-          } else {
-            // Use copyFileSync to preserve file mode/permissions
-            copyFileSync(srcFile, destFile);
-          }
-        } catch (err) {
-          console.error(`Failed to copy file/link ${srcFile}:`, err);
-        }
-      }
-    }
-
-    // Apply captured git config to the new folder
-    if (localName) {
-      execSync(`git config --local user.name "${localName}"`, { cwd: newPath });
-    }
-    if (localEmail) {
-      execSync(`git config --local user.email "${localEmail}"`, { cwd: newPath });
-    }
+    copyFolderRobustly(path, newPath);
 
     return c.json({ success: true, newPath });
   } catch (e) {

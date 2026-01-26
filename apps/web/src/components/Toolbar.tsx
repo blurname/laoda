@@ -1,19 +1,27 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { selectedIDEAtom, IDEType, foldersAtom, viewAtom, managedFilesAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
 export const Toolbar = () => {
   const [isPicking, setIsPicking] = useState(false);
+  const pickingLock = useRef(false);
   const [selectedIDE, setSelectedIDE] = useAtom(selectedIDEAtom);
   const [currentView, setCurrentView] = useAtom(viewAtom);
   const setFolders = useSetAtom(foldersAtom);
   const setManagedFiles = useSetAtom(managedFilesAtom);
 
   const handleImport = async () => {
+    if (pickingLock.current) return;
+    pickingLock.current = true;
     setIsPicking(true);
     try {
       const path = await api.pickFolder();
+      if (!path) {
+        pickingLock.current = false;
+        setIsPicking(false);
+        return;
+      }
 
       // Update local storage first to ensure UI is responsive and data is persistent
       const name = path.split("/").pop() || path;
@@ -36,6 +44,7 @@ export const Toolbar = () => {
     } catch (err) {
       console.error("Import failed:", err);
     } finally {
+      pickingLock.current = false;
       setIsPicking(false);
     }
   };
