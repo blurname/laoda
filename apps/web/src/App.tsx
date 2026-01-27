@@ -4,6 +4,7 @@ import { Toolbar } from "./components/Toolbar";
 import { FolderList } from "./components/FolderList";
 import { DataView } from "./components/DataView";
 import { SyncView } from "./components/SyncView";
+import { ToastContainer } from "./components/Toast";
 import { viewAtom } from "./store/atoms";
 import { useSocket } from "./hooks/useSocket";
 
@@ -27,6 +28,7 @@ function App() {
           </div>
         )}
       </main>
+      <ToastContainer />
     </div>
   );
 }

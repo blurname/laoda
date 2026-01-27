@@ -157,11 +157,16 @@ app.get("/api/ls", (c) => {
 // New API to call system folder picker
 app.post("/api/pick-folder", async (c) => {
   try {
-    const path = await os.pickFolder();
-    if (!path) {
-      return c.json({ error: "No folder selected" }, 400);
-    }
-    return c.json({ path });
+    // Run picker in background to avoid HTTP timeout
+    (async () => {
+      const path = await os.pickFolder();
+      notifyClients({
+        type: "FOLDER_PICKED",
+        path: path
+      });
+    })();
+    
+    return c.json({ success: true, message: "Picker started" });
   } catch (e) {
     console.error("Failed to open system picker:", e);
     return c.json({ error: "Failed to open system picker" }, 500);
@@ -189,26 +194,31 @@ app.post("/api/delete", async (c) => {
   const { path } = await c.req.json();
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
 
-  try {
-    console.log(`Deleting folder: ${path}`);
-    rmSync(path, { recursive: true, force: true });
-    
-    // Cleanup internal state
-    const id = Buffer.from(path).toString("base64");
-    folders.delete(id);
-    const watcherInfo = watchers.get(id);
-    if (watcherInfo) {
-      watcherInfo.watcher.close();
-      watcherInfo.gitWatcher.close();
-      watchers.delete(id);
+  // Run in background
+  (async () => {
+    try {
+      console.log(`Deleting folder: ${path}`);
+      rmSync(path, { recursive: true, force: true });
+      
+      // Cleanup internal state
+      const id = Buffer.from(path).toString("base64");
+      folders.delete(id);
+      const watcherInfo = watchers.get(id);
+      if (watcherInfo) {
+        watcherInfo.watcher.close();
+        watcherInfo.gitWatcher.close();
+        watchers.delete(id);
+      }
+      
+      broadcastFolders();
+      notifyClients({ type: "DELETION_COMPLETE", path, success: true });
+    } catch (e: any) {
+      console.error("Deletion failed:", e);
+      notifyClients({ type: "DELETION_COMPLETE", path, success: false, error: e.message });
     }
-    
-    broadcastFolders();
-    return c.json({ success: true });
-  } catch (e) {
-    console.error("Deletion failed:", e);
-    return c.json({ error: "Deletion failed" }, 500);
-  }
+  })();
+
+  return c.json({ success: true, message: "Deletion started" });
 });
 
 app.post("/api/write-file", async (c) => {
@@ -297,75 +307,85 @@ app.post("/api/move-bulk", async (c) => {
     return c.json({ error: "Invalid parameters" }, 400);
   }
 
-  const results = [];
-  for (const src of paths) {
-    if (!existsSync(src)) continue;
-    
-    const folderName = basename(src);
-    const dest = join(targetParent, folderName);
-    
-    if (existsSync(dest)) {
-      results.push({ path: src, success: false, error: "Target exists" });
-      continue;
-    }
-
-    try {
-      console.log(`Moving ${src} to ${dest}`);
-      copyFolderRobustly(src, dest);
+  // Run in background
+  (async () => {
+    const results = [];
+    for (const src of paths) {
+      if (!existsSync(src)) continue;
       
-      // Cleanup original
-      rmSync(src, { recursive: true, force: true });
+      const folderName = basename(src);
+      const dest = join(targetParent, folderName);
       
-      // Cleanup internal state
-      const id = Buffer.from(src).toString("base64");
-      folders.delete(id);
-      const watcherInfo = watchers.get(id);
-      if (watcherInfo) {
-        watcherInfo.watcher.close();
-        watcherInfo.gitWatcher.close();
-        watchers.delete(id);
+      if (existsSync(dest)) {
+        results.push({ path: src, success: false, error: "Target exists" });
+        continue;
       }
 
-      results.push({ path: src, success: true, newPath: dest });
-    } catch (e: any) {
-      console.error(`Move failed for ${src}:`, e);
-      results.push({ path: src, success: false, error: e.message });
-    }
-  }
+      try {
+        console.log(`Moving ${src} to ${dest}`);
+        copyFolderRobustly(src, dest);
+        
+        // Cleanup original
+        rmSync(src, { recursive: true, force: true });
+        
+        // Cleanup internal state
+        const id = Buffer.from(src).toString("base64");
+        folders.delete(id);
+        const watcherInfo = watchers.get(id);
+        if (watcherInfo) {
+          watcherInfo.watcher.close();
+          watcherInfo.gitWatcher.close();
+          watchers.delete(id);
+        }
 
-  broadcastFolders();
-  return c.json({ results });
+        results.push({ path: src, success: true, newPath: dest });
+      } catch (e: any) {
+        console.error(`Move failed for ${src}:`, e);
+        results.push({ path: src, success: false, error: e.message });
+      }
+    }
+
+    broadcastFolders();
+    notifyClients({ type: "MOVE_BULK_COMPLETE", results });
+  })();
+
+  return c.json({ success: true, message: "Move started" });
 });
 
 app.post("/api/duplicate", async (c) => {
   const { path } = await c.req.json();
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
 
-  try {
-    const parentDir = join(path, "..");
-    const fullName = basename(path);
-    
-    // Check if name already ends with "-number"
-    const match = fullName.match(/^(.*?)-(\d+)$/);
-    const baseName = match ? (match[1] || fullName) : fullName;
-    let counter = match ? parseInt(match[2] || "0") + 1 : 1;
+  // Run in background
+  (async () => {
+    try {
+      const parentDir = join(path, "..");
+      const fullName = basename(path);
+      
+      // Check if name already ends with "-number"
+      const match = fullName.match(/^(.*?)-(\d+)$/);
+      const baseName = match ? (match[1] || fullName) : fullName;
+      let counter = match ? parseInt(match[2] || "0") + 1 : 1;
 
-    let newPath = "";
-    while (true) {
-      const newName = `${baseName}-${counter}`;
-      newPath = join(parentDir, newName);
-      if (!existsSync(newPath)) break;
-      counter++;
+      let newPath = "";
+      while (true) {
+        const newName = `${baseName}-${counter}`;
+        newPath = join(parentDir, newName);
+        if (!existsSync(newPath)) break;
+        counter++;
+      }
+
+      console.log(`Duplicating ${path} to ${newPath}`);
+      copyFolderRobustly(path, newPath);
+
+      notifyClients({ type: "DUPLICATION_COMPLETE", path, newPath, success: true });
+    } catch (e: any) {
+      console.error("Duplication failed:", e);
+      notifyClients({ type: "DUPLICATION_COMPLETE", path, success: false, error: e.message });
     }
+  })();
 
-    console.log(`Duplicating ${path} to ${newPath}`);
-    copyFolderRobustly(path, newPath);
-
-    return c.json({ success: true, newPath });
-  } catch (e) {
-    console.error("Duplication failed:", e);
-    return c.json({ error: "Duplication failed" }, 500);
-  }
+  return c.json({ success: true, message: "Duplication started" });
 });
 
 app.post("/api/watch", async (c) => {

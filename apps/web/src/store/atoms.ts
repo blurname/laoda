@@ -51,3 +51,11 @@ export const isMultiSelectModeAtom = atom(false);
 export const selectedPathsAtom = atom<string[]>([]);
 
 export const isConnectedAtom = atom(false);
+
+export interface ToastInfo {
+  message: string;
+  type: "loading" | "success" | "error";
+  id: string;
+}
+
+export const toastsAtom = atom<ToastInfo[]>([]);

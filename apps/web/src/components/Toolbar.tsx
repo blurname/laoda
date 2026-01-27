@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import { selectedIDEAtom, foldersAtom, viewAtom, managedFilesAtom } from "../store/atoms";
+import { selectedIDEAtom, foldersAtom, viewAtom, managedFilesAtom, toastsAtom, ToastInfo } from "../store/atoms";
 import { api } from "../utils/api";
 
 const SUPPORTED_IDES = [
@@ -19,14 +19,20 @@ export const Toolbar = () => {
   const [currentView, setCurrentView] = useAtom(viewAtom);
   const setFolders = useSetAtom(foldersAtom);
   const setManagedFiles = useSetAtom(managedFilesAtom);
+  const setToasts = useSetAtom(toastsAtom);
 
   const handleImport = async () => {
     if (pickingLock.current) return;
     pickingLock.current = true;
     setIsPicking(true);
+    
+    const toastId = Math.random().toString(36).substring(7);
+    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Importing_Project...", type: "loading" }]);
+
     try {
       const path = await api.pickFolder();
       if (!path) {
+        setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId));
         pickingLock.current = false;
         setIsPicking(false);
         return;
@@ -51,8 +57,13 @@ export const Toolbar = () => {
       });
 
       await api.watchFolder(path);
+      
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import_Success", type: "success" } : t));
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     } catch (err) {
       console.error("Import failed:", err);
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import_Failed", type: "error" } : t));
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 3000);
     } finally {
       pickingLock.current = false;
       setIsPicking(false);

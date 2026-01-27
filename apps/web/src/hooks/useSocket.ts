@@ -3,6 +3,19 @@ import { useAtom, useSetAtom } from "jotai";
 import { foldersAtom, isConnectedAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
+// Simple global event registry for async operations
+type Resolver = (data: any) => void;
+const resolvers: Record<string, Resolver[]> = {
+  FOLDER_PICKED: [],
+  DUPLICATION_COMPLETE: [],
+  DELETION_COMPLETE: [],
+  MOVE_BULK_COMPLETE: [],
+};
+
+export const registerResolver = (type: keyof typeof resolvers, resolve: Resolver) => {
+  resolvers[type].push(resolve);
+};
+
 export const useSocket = () => {
   const [folders, setFolders] = useAtom(foldersAtom);
   const setIsConnected = useSetAtom(isConnectedAtom);
@@ -46,6 +59,13 @@ export const useSocket = () => {
               return updated ? { ...local, ...updated } : local;
             });
           });
+        } else if (resolvers[data.type]) {
+          // Resolve any pending requests for this type
+          const typeResolvers = resolvers[data.type];
+          while (typeResolvers.length > 0) {
+            const resolve = typeResolvers.shift();
+            if (resolve) resolve(data);
+          }
         }
       };
 

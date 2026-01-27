@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { FolderInfo, selectedIDEAtom, foldersAtom, isMultiSelectModeAtom, selectedPathsAtom } from "../store/atoms";
+import { FolderInfo, selectedIDEAtom, foldersAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo } from "../store/atoms";
 import { api } from "../utils/api";
 
 interface FolderCardProps {
@@ -14,6 +14,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
   const setFolders = useSetAtom(foldersAtom);
   const isMultiSelect = useAtomValue(isMultiSelectModeAtom);
   const [selectedPaths, setSelectedPaths] = useAtom(selectedPathsAtom);
+  const setToasts = useSetAtom(toastsAtom);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -47,8 +48,12 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     e.stopPropagation();
     if (isDuplicating) return;
     setIsDuplicating(true);
+    
+    const toastId = Math.random().toString(36).substring(7);
+    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Duplicating...", type: "loading" }]);
+
     try {
-      const { newPath } = await api.duplicateFolder(folder.path);
+      const newPath = await api.duplicateFolder(folder.path);
       const name = newPath.split("/").pop() || newPath;
       const id = encodeURIComponent(newPath).replace(/%/g, "_");
       
@@ -67,11 +72,13 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       });
 
       await api.watchFolder(newPath);
-    } catch (err) {
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Duplicate_Success", type: "success" } : t));
+    } catch (err: any) {
       console.error("Duplication failed:", err);
-      alert("Duplication failed");
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Duplicate_Failed", type: "error" } : t));
     } finally {
       setIsDuplicating(false);
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     }
   };
 
@@ -82,14 +89,19 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     if (!confirmDelete) return;
 
     setIsDeleting(true);
+    const toastId = Math.random().toString(36).substring(7);
+    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Deleting...", type: "loading" }]);
+
     try {
       await api.deleteFolder(folder.path);
       setFolders((prev) => prev.filter((f) => f.id !== folder.id));
-    } catch (err) {
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Delete_Success", type: "success" } : t));
+    } catch (err: any) {
       console.error("Deletion failed:", err);
-      alert("Deletion failed");
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Delete_Failed", type: "error" } : t));
     } finally {
       setIsDeleting(false);
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     }
   };
 

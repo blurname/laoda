@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef } from "react";
-import { useAtom, useAtomValue } from "jotai";
-import { foldersAtom, isConnectedAtom, isSortedByNameAtom, isMultiSelectModeAtom, selectedPathsAtom } from "../store/atoms";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { foldersAtom, isConnectedAtom, isSortedByNameAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo } from "../store/atoms";
 import { FolderCard } from "./FolderCard";
 import { api } from "../utils/api";
 
@@ -10,6 +10,7 @@ export const FolderList = () => {
   const [isSortedByName, setIsSortedByName] = useAtom(isSortedByNameAtom);
   const [isMultiSelect, setIsMultiSelect] = useAtom(isMultiSelectModeAtom);
   const [selectedPaths, setSelectedPaths] = useAtom(selectedPathsAtom);
+  const setToasts = useSetAtom(toastsAtom);
   const [isMoving, setIsMoving] = useState(false);
   const movingLock = useRef(false);
 
@@ -57,21 +58,30 @@ export const FolderList = () => {
     
     movingLock.current = true;
     setIsMoving(true);
+    
+    const toastId = Math.random().toString(36).substring(7);
+    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: `Moving_${selectedPaths.length}_Items...`, type: "loading" }]);
+
     try {
       const targetParent = await api.pickFolder();
       if (!targetParent) {
+        setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId));
         movingLock.current = false;
         setIsMoving(false);
         return;
       }
 
-      const { results } = await api.moveBulk(selectedPaths, targetParent);
+      const results = await api.moveBulk(selectedPaths, targetParent);
       
       const failed = results.filter(r => !r.success);
       
       if (failed.length > 0) {
         console.error("Some folders failed to move:", failed);
+        setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Partial_Move_Failed", type: "error" } : t));
+      } else {
+        setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Move_Success", type: "success" } : t));
       }
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
 
       // Update local state with new paths for successfully moved folders
       setFolders(prev => prev.map(f => {
@@ -81,7 +91,7 @@ export const FolderList = () => {
           const name = newPath.split("/").pop() || newPath;
           return {
             ...f,
-            id: btoa(newPath),
+            id: encodeURIComponent(newPath).replace(/%/g, "_"),
             path: newPath,
             name: name
           };
