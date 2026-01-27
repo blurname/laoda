@@ -6,9 +6,10 @@ import { api } from "../utils/api";
 interface FolderCardProps {
   folder: FolderInfo;
   isBackendConnected: boolean;
+  isGroup?: boolean;
 }
 
-export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnected }) => {
+export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnected, isGroup }) => {
   const selectedIDE = useAtomValue(selectedIDEAtom);
   const setFolders = useSetAtom(foldersAtom);
   const isMultiSelect = useAtomValue(isMultiSelectModeAtom);
@@ -97,7 +98,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       onClick={isMultiSelect ? toggleSelection : undefined}
       className={`bg-zinc-50 border flex items-stretch relative overflow-hidden shadow-sm transition-all duration-300 ${
         isBackendConnected ? "border-zinc-300" : "border-red-200"
-      } ${isSelected ? "ring-2 ring-zinc-700 ring-inset bg-zinc-100" : ""}`}
+      } ${isSelected ? "ring-2 ring-zinc-700 ring-inset bg-zinc-100" : ""} ${isGroup ? "bg-zinc-100/50" : ""}`}
     >
       {isMultiSelect && (
         <div className="w-10 shrink-0 flex items-center justify-center border-r border-zinc-200 bg-zinc-100/50">
@@ -117,16 +118,19 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       <div className="flex items-center gap-6 flex-1 min-w-0 p-4 opacity-90">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-4 mb-2">
-            <h3 className={`text-base font-bold tracking-tight truncate ${isBackendConnected ? "text-zinc-800" : "text-zinc-500"}`}>
+            <h3 className={`text-base font-bold tracking-tight truncate ${isBackendConnected ? "text-zinc-800" : "text-zinc-500"} ${isGroup ? "text-zinc-600 italic" : ""}`}>
               {folder.name}
+              {isGroup && <span className="ml-2 text-[10px] font-black opacity-40 not-italic uppercase tracking-widest">[Group]</span>}
             </h3>
             
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="flex items-center gap-1.5 bg-zinc-200/50 px-2 py-0.5 border border-zinc-200">
-                <span className="text-[11px] font-bold text-zinc-600">
-                  {folder.branch || "no-branch"}
-                </span>
-              </div>
+              {!isGroup && (
+                <div className="flex items-center gap-1.5 bg-zinc-200/50 px-2 py-0.5 border border-zinc-200">
+                  <span className="text-[11px] font-bold text-zinc-600">
+                    {folder.branch || "no-branch"}
+                  </span>
+                </div>
+              )}
 
               <div className={`flex items-center justify-center w-5 h-5 border transition-colors ${
                 isBackendConnected 
@@ -169,7 +173,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
               )}
             </div>
 
-            {folder.diffCount > 0 && isBackendConnected && (
+            {!isGroup && folder.diffCount > 0 && isBackendConnected && (
               <div className="text-[10px] font-black text-amber-500 bg-zinc-700 px-2 py-0.5 border border-zinc-800 capitalize tracking-tighter shadow-sm">
                 {folder.diffCount} diff
               </div>
@@ -180,7 +184,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
             <div className="flex items-center gap-1.5 text-[11px] font-medium">
               <span className="truncate max-w-[300px] opacity-70">{folder.path}</span>
             </div>
-            {folder.latestCommit && (
+            {!isGroup && folder.latestCommit && (
               <div className="flex items-center gap-1.5 text-[11px] truncate border-l border-zinc-300 pl-4">
                 <span className="truncate italic opacity-70">{folder.latestCommit}</span>
               </div>

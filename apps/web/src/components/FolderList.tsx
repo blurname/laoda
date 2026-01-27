@@ -13,9 +13,43 @@ export const FolderList = () => {
   const [isMoving, setIsMoving] = useState(false);
   const movingLock = useRef(false);
 
-  const displayFolders = useMemo(() => {
-    if (!isSortedByName) return folders;
-    return [...folders].sort((a, b) => a.name.localeCompare(b.name));
+  const treeItems = useMemo(() => {
+    const sorted = !isSortedByName ? folders : [...folders].sort((a, b) => a.name.localeCompare(b.name));
+    
+    // Group by parent directory
+    const groups = new Map<string, typeof folders>();
+    sorted.forEach(f => {
+      const parent = f.path.split("/").slice(0, -1).join("/");
+      if (!groups.has(parent)) groups.set(parent, []);
+      groups.get(parent)!.push(f);
+    });
+
+    const result: (
+      | { type: "project"; folder: (typeof folders)[0] }
+      | { type: "group"; path: string; name: string; children: typeof folders }
+    )[] = [];
+
+    const processedParents = new Set<string>();
+
+    sorted.forEach(f => {
+      const parent = f.path.split("/").slice(0, -1).join("/");
+      if (processedParents.has(parent)) return;
+
+      const groupProjects = groups.get(parent)!;
+      if (groupProjects.length > 1) {
+        result.push({
+          type: "group",
+          path: parent,
+          name: parent.split("/").pop() || parent,
+          children: groupProjects
+        });
+        processedParents.add(parent);
+      } else {
+        result.push({ type: "project", folder: f });
+      }
+    });
+
+    return result;
   }, [folders, isSortedByName]);
 
   const handleMoveBulk = async () => {
@@ -135,14 +169,43 @@ export const FolderList = () => {
           <p className="text-[10px] capitalize tracking-widest font-bold">No entries found in registry.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {displayFolders.map((folder) => (
-            <FolderCard 
-              key={folder.id} 
-              folder={folder} 
-              isBackendConnected={isConnected} 
-            />
-          ))}
+        <div className="flex flex-col gap-1.5 pb-10">
+          {treeItems.map((item) => {
+            if (item.type === "group") {
+              return (
+                <div key={item.path} className="flex flex-col gap-1">
+                  <FolderCard 
+                    folder={{
+                      id: btoa(item.path),
+                      name: item.name,
+                      path: item.path,
+                      branch: "",
+                      diffCount: 0,
+                      latestCommit: ""
+                    }}
+                    isBackendConnected={isConnected}
+                    isGroup={true}
+                  />
+                  <div className="flex flex-col gap-1 pl-6 border-l-2 border-zinc-300 ml-4 py-1">
+                    {item.children.map(child => (
+                      <FolderCard 
+                        key={child.id} 
+                        folder={child} 
+                        isBackendConnected={isConnected} 
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <FolderCard 
+                key={item.folder.id} 
+                folder={item.folder} 
+                isBackendConnected={isConnected} 
+              />
+            );
+          })}
         </div>
       )}
     </div>
