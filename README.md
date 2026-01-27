@@ -1,6 +1,9 @@
 # laoda
 AI IDEs are under your lead, laoda
 
+## philosophy
+one folder, one git repo, one AI running
+
 ## usage
 1. install `npm i -g laoda`
 2. run `laoda`
@@ -20,5 +23,3 @@ AI IDEs are under your lead, laoda
 - **Registry Mirror**: Raw view of `localStorage` data for direct inspection and manual verification.
 - **Bulk Management**: Support for full registry export and overwrite import via JSON.
 
-## philosophy
-one git repo, one folder, one AI running
