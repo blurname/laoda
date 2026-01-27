@@ -10,12 +10,28 @@ export interface FolderInfo {
   latestCommit: string;
 }
 
-export const foldersAtom = atomWithStorage<FolderInfo[]>("imported-folders", []);
-
-export const selectedIDEAtom = atomWithStorage<string | null>("selected-ide", "Cursor");
+export interface ManagedFile {
+  id: string;
+  filename: string;
+  content: string;
+  targetPattern: string; // The folder name to match
+}
 
 export type ViewType = "list" | "data" | "sync";
-export const viewAtom = atomWithStorage<ViewType>(
+
+export interface LaodaStorage {
+  "imported-folders": FolderInfo[];
+  "selected-ide": string | null;
+  "current-view": ViewType;
+  "managed-files": ManagedFile[];
+  "is-sorted-by-name": boolean;
+}
+
+export const foldersAtom = atomWithStorage<LaodaStorage["imported-folders"]>("imported-folders", []);
+
+export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide"]>("selected-ide", "Cursor");
+
+export const viewAtom = atomWithStorage<LaodaStorage["current-view"]>(
   "current-view",
   (() => {
     if (typeof window === "undefined") return "list";
@@ -28,16 +44,9 @@ export const viewAtom = atomWithStorage<ViewType>(
   })()
 );
 
-export interface ManagedFile {
-  id: string;
-  filename: string;
-  content: string;
-  targetPattern: string; // The folder name to match
-}
+export const managedFilesAtom = atomWithStorage<LaodaStorage["managed-files"]>("managed-files", []);
 
-export const managedFilesAtom = atomWithStorage<ManagedFile[]>("managed-files", []);
-
-export const isSortedByNameAtom = atomWithStorage<boolean>("is-sorted-by-name", false);
+export const isSortedByNameAtom = atomWithStorage<LaodaStorage["is-sorted-by-name"]>("is-sorted-by-name", false);
 export const isMultiSelectModeAtom = atom(false);
 export const selectedPathsAtom = atom<string[]>([]);
 

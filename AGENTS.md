@@ -3,7 +3,8 @@
 极简本地项目管理中心：实时监控 Git 状态，一键启动 IDE。
 
 ## 1. 核心架构 (Core Architecture)
-*   权威源: 前端 localStorage 为数据唯一真理；后端仅作 Git 数据增强。
+*   权威源: 前端 `localStorage` 为数据唯一真理；后端仅作 Git 数据增强。
+*   数据规范: 必须维护 `LaodaStorage` 强类型接口，所有持久化状态需映射至对应的 `localStorage` 键值。
 *   通信: WebSocket 实时推送；具备自动重连与路径同步机制。
 *   OS 适配: 抽象 OS 层，当前仅支持 macOS (osa脚本选择文件夹/open命令启动)。
 *   技术栈: Bun + Hono (Server) | React + RSBuild + Jotai (Web)。
@@ -28,4 +29,5 @@
 
 ## 3. 视图定义
 *   TERMINAL: 主项目列表，展示分支、Diff 计数、Commit 信息。
-*   DATA: 原始数据视图，直接映射 localStorage 内容。
+*   SYNC: 配置文件同步视图，支持智能前缀匹配与根目录分发。
+*   DATA: 原始数据视图，映射 `localStorage` 内容，支持全量 JSON 导出与覆盖式导入。
