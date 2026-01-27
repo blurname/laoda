@@ -1,6 +1,6 @@
 {
   "name": "laoda",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "bin": {
     "laoda": "dist/index.js"
   },
