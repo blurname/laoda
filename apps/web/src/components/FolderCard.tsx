@@ -50,7 +50,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     try {
       const { newPath } = await api.duplicateFolder(folder.path);
       const name = newPath.split("/").pop() || newPath;
-      const id = btoa(newPath);
+      const id = encodeURIComponent(newPath).replace(/%/g, "_");
       
       const newFolder = {
         id,

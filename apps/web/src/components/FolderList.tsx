@@ -174,18 +174,18 @@ export const FolderList = () => {
             if (item.type === "group") {
               return (
                 <div key={item.path} className="flex flex-col gap-1">
-                  <FolderCard 
-                    folder={{
-                      id: btoa(item.path),
-                      name: item.name,
-                      path: item.path,
-                      branch: "",
-                      diffCount: 0,
-                      latestCommit: ""
-                    }}
-                    isBackendConnected={isConnected}
-                    isGroup={true}
-                  />
+          <FolderCard 
+            folder={{
+              id: encodeURIComponent(item.path).replace(/%/g, "_"),
+              name: item.name,
+              path: item.path,
+              branch: "",
+              diffCount: 0,
+              latestCommit: ""
+            }}
+            isBackendConnected={isConnected}
+            isGroup={true}
+          />
                   <div className="flex flex-col gap-1 pl-6 border-l-2 border-zinc-300 ml-4 py-1">
                     {item.children.map(child => (
                       <FolderCard 

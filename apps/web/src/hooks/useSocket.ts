@@ -36,6 +36,11 @@ export const useSocket = () => {
         if (data.type === "UPDATE_FOLDERS") {
           setFolders((prev) => {
             const serverFolders = data.folders as any[];
+            // If local is empty, sync from server directly
+            if (prev.length === 0 && serverFolders.length > 0) {
+              return serverFolders;
+            }
+            // Update existing ones
             return prev.map((local) => {
               const updated = serverFolders.find((s) => s.path === local.path);
               return updated ? { ...local, ...updated } : local;

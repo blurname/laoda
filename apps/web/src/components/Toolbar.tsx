@@ -34,7 +34,8 @@ export const Toolbar = () => {
 
       // Update local storage first to ensure UI is responsive and data is persistent
       const name = path.split("/").pop() || path;
-      const id = btoa(path);
+      // Use a more robust ID generation that handles non-ASCII characters
+      const id = encodeURIComponent(path).replace(/%/g, "_");
       const newFolder = {
         id,
         name,
