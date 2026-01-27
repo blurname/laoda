@@ -2,10 +2,10 @@
   "name": "laoda",
   "version": "0.0.1",
   "bin": {
-    "laoda": "output-gitignore/laoda"
+    "laoda": "dist/index.js"
   },
   "files": [
-    "output-gitignore/laoda",
+    "dist",
     "README.md"
   ],
   "workspaces": [
@@ -17,13 +17,19 @@
     "dev": "bun --filter \"*\" dev",
     "dev:web": "bun --cwd apps/web dev",
     "dev:server": "bun --cwd apps/server dev",
-    "build": "bun run build:web && bun run build:embed && bun run build:server",
+    "build": "bun run build:web && bun run build:server && bun run build:finalize",
     "build:web": "bun --cwd apps/web build",
-    "build:embed": "bun scripts/embed-assets.ts",
-    "build:server": "mkdir -p output-gitignore && bun build ./apps/server/index.ts --compile --outfile output-gitignore/laoda",
-    "start": "NODE_ENV=production ./output-gitignore/laoda",
+    "build:server": "mkdir -p dist && bun build ./apps/server/index.ts --target node --outfile dist/index.js --external @hono/node-server --external ws --external chokidar",
+    "build:finalize": "mkdir -p dist/dist-web && cp -r apps/web/dist/* dist/dist-web/",
+    "start": "NODE_ENV=production node dist/index.js",
     "lint": "oxlint -c .oxlintrc.json",
     "format": "oxfmt ."
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.9",
+    "chokidar": "^5.0.0",
+    "hono": "^4.11.5",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "oxfmt": "^0.26.0",

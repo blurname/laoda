@@ -5,12 +5,20 @@ const API_BASE = isProd ? window.location.origin : "http://localhost:26124";
 
 export const api = {
   async pickFolder(): Promise<string | null> {
-    const res = await fetch(`${API_BASE}/api/pick-folder`, { method: "POST" });
-    if (!res.ok) throw new Error("Failed to pick folder");
-    
-    // Return a promise that resolves when the WebSocket receives the result
-    return new Promise((resolve) => {
-      registerResolver("FOLDER_PICKED", (data) => resolve(data.path));
+    return new Promise(async (resolve, reject) => {
+      registerResolver("FOLDER_PICKED", (data) => {
+        resolve(data.path);
+        return true;
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/api/pick-folder`, { method: "POST" });
+        if (!res.ok) {
+          reject(new Error("Failed to pick folder"));
+        }
+      } catch (err) {
+        reject(err);
+      }
     });
   },
 
@@ -21,6 +29,7 @@ export const api = {
       body: JSON.stringify({ path }),
     });
     if (!res.ok) throw new Error("Failed to watch folder");
+    // Returns: { path, branch, diffCount, latestCommit }
     return res.json();
   },
 
@@ -31,6 +40,18 @@ export const api = {
       body: JSON.stringify({ paths }),
     });
     if (!res.ok) throw new Error("Failed to watch folders in bulk");
+    // Returns: { [path]: { branch, diffCount, latestCommit } }
+    return res.json();
+  },
+
+  async getGitInfo(paths: string[]): Promise<Record<string, { branch: string; diffCount: number; latestCommit: string }>> {
+    const res = await fetch(`${API_BASE}/api/git-info`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths }),
+    });
+    if (!res.ok) throw new Error("Failed to get Git info");
+    // Returns: { [path]: { branch, diffCount, latestCommit } }
     return res.json();
   },
 
@@ -45,31 +66,59 @@ export const api = {
   },
 
   async duplicateFolder(path: string): Promise<string> {
-    const res = await fetch(`${API_BASE}/api/duplicate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path }),
-    });
-    if (!res.ok) throw new Error("Failed to duplicate folder");
-    
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Duplication timeout: No response from server"));
+      }, 30000); // 30秒超时
+      
       registerResolver("DUPLICATION_COMPLETE", (data) => {
-        if (data.success) resolve(data.newPath);
-        else reject(new Error(data.error || "Duplication failed"));
+        if (data.path === path) {
+          clearTimeout(timeout);
+          if (data.success) resolve(data.newPath);
+          else reject(new Error(data.error || "Duplication failed"));
+          return true;
+        }
+        return false;
       });
+
+      try {
+        const res = await fetch(`${API_BASE}/api/duplicate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path }),
+        });
+        if (!res.ok) {
+          clearTimeout(timeout);
+          reject(new Error("Failed to duplicate folder"));
+        }
+      } catch (err) {
+        clearTimeout(timeout);
+        reject(err);
+      }
     });
   },
 
   async moveBulk(paths: string[], targetParent: string): Promise<any[]> {
-    const res = await fetch(`${API_BASE}/api/move-bulk`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paths, targetParent }),
-    });
-    if (!res.ok) throw new Error("Failed to move folders");
-    
-    return new Promise((resolve) => {
-      registerResolver("MOVE_BULK_COMPLETE", (data) => resolve(data.results));
+    return new Promise(async (resolve, reject) => {
+      registerResolver("MOVE_BULK_COMPLETE", (data) => {
+        // Since MOVE_BULK_COMPLETE usually happens once for the entire request,
+        // we can resolve it directly.
+        resolve(data.results);
+        return true;
+      });
+
+      try {
+        const res = await fetch(`${API_BASE}/api/move-bulk`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paths, targetParent }),
+        });
+        if (!res.ok) {
+          reject(new Error("Failed to move folders"));
+        }
+      } catch (err) {
+        reject(err);
+      }
     });
   },
 
@@ -84,18 +133,35 @@ export const api = {
   },
 
   async deleteFolder(path: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/api/delete`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path }),
-    });
-    if (!res.ok) throw new Error("Failed to delete folder");
-
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Deletion timeout: No response from server"));
+      }, 30000); // 30秒超时
+      
       registerResolver("DELETION_COMPLETE", (data) => {
-        if (data.success) resolve();
-        else reject(new Error(data.error || "Deletion failed"));
+        if (data.path === path) {
+          clearTimeout(timeout);
+          if (data.success) resolve();
+          else reject(new Error(data.error || "Deletion failed"));
+          return true;
+        }
+        return false;
       });
+
+      try {
+        const res = await fetch(`${API_BASE}/api/delete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path }),
+        });
+        if (!res.ok) {
+          clearTimeout(timeout);
+          reject(new Error("Failed to delete folder"));
+        }
+      } catch (err) {
+        clearTimeout(timeout);
+        reject(err);
+      }
     });
   },
 

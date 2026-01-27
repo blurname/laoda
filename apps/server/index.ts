@@ -1,22 +1,29 @@
+#!/usr/bin/env node
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { serveStatic } from "hono/bun";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { serve } from "@hono/node-server";
+import { WebSocketServer } from "ws";
 import { watch } from "chokidar";
-import { join, basename, relative } from "path";
-import { readFileSync, existsSync, readdirSync, mkdirSync, copyFileSync, cpSync, lstatSync, readlinkSync, symlinkSync, rmSync } from "fs";
-import { execSync } from "child_process";
+import { join, basename, relative, dirname } from "path";
+import { fileURLToPath } from "url";
+import {
+  readFileSync,
+  existsSync,
+  readdirSync,
+  mkdirSync,
+  copyFileSync,
+  cpSync,
+  lstatSync,
+  readlinkSync,
+  symlinkSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
+import { execSync, spawn } from "child_process";
 
-// Optional embedded assets for single-binary distribution
-let embeddedAssets: Record<string, { content: string; contentType: string }> | null = null;
-try {
-  // @ts-ignore
-  const gen = await import("../../output-gitignore/embedded-assets.ts");
-  embeddedAssets = gen.embeddedAssets;
-} catch {
-  // Not bundled
-}
-
-// ... (keep OS Abstraction Layer)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 interface OSAdapter {
   pickFolder(): Promise<string | null>;
@@ -34,22 +41,26 @@ class MacOSAdapter implements OSAdapter {
 
     this.isPickerOpen = true;
     try {
-      const proc = Bun.spawn([
-        "osascript",
+      const proc = spawn("osascript", [
         "-e",
         'POSIX path of (choose folder with prompt "Select a folder")',
       ]);
-      const path = (await new Response(proc.stdout).text()).trim();
-      return path || null;
+
+      let output = "";
+      if (proc.stdout) {
+        for await (const chunk of proc.stdout) {
+          output += chunk;
+        }
+      }
+      return output.trim() || null;
     } finally {
       this.isPickerOpen = false;
     }
   }
 
   async openInIDE(appName: string, path: string): Promise<void> {
-    Bun.spawn(["open", "-a", appName, path], {
-      stdout: "inherit",
-      stderr: "inherit",
+    spawn("open", ["-a", appName, path], {
+      stdio: "inherit",
     });
   }
 }
@@ -62,7 +73,7 @@ const os: OSAdapter = new MacOSAdapter();
 const app = new Hono();
 
 // Parse CLI arguments
-const args = Bun.argv;
+const args = process.argv;
 let defaultPort = 26124;
 
 if (args.includes("--help") || args.includes("-h")) {
@@ -79,7 +90,8 @@ Options:
   process.exit(0);
 }
 
-const portArgIdx = args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
+const portArgIdx =
+  args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
 if (portArgIdx !== -1) {
   const nextArg = args[portArgIdx + 1];
   if (nextArg) {
@@ -89,13 +101,16 @@ if (portArgIdx !== -1) {
 
 app.use("/*", cors());
 
-const folders = new Map<string, { id: string; name: string; path: string; branch: string; diffCount: number; latestCommit: string }>();
+// Only track which paths are being watched, not full folder data
+// Frontend localStorage is the source of truth for folder data
+const watchedPaths = new Set<string>();
 const watchers = new Map<string, any>();
 
 function getGitInfo(path: string) {
   try {
     const headPath = join(path, ".git", "HEAD");
-    if (!existsSync(headPath)) return { branch: "no branch", diffCount: 0, latestCommit: "" };
+    if (!existsSync(headPath))
+      return { branch: "no branch", diffCount: 0, latestCommit: "" };
 
     // Get Branch
     let branch = "unknown";
@@ -109,8 +124,12 @@ function getGitInfo(path: string) {
     // Get Diff Count (modified + untracked)
     let diffCount = 0;
     try {
-      const status = execSync("git status --porcelain", { cwd: path }).toString();
-      diffCount = status.split("\n").filter(line => line.trim().length > 0).length;
+      const status = execSync("git status --porcelain", {
+        cwd: path,
+      }).toString();
+      diffCount = status
+        .split("\n")
+        .filter((line) => line.trim().length > 0).length;
     } catch {
       // ignore
     }
@@ -118,7 +137,9 @@ function getGitInfo(path: string) {
     // Get Latest Commit Info
     let latestCommit = "";
     try {
-      latestCommit = execSync('git log -1 --format="%s (%h)"', { cwd: path }).toString().trim();
+      latestCommit = execSync('git log -1 --format="%s (%h)"', { cwd: path })
+        .toString()
+        .trim();
     } catch {
       // ignore
     }
@@ -129,13 +150,8 @@ function getGitInfo(path: string) {
   }
 }
 
-function broadcastFolders() {
-  const data = {
-    type: "UPDATE_FOLDERS",
-    folders: Array.from(folders.values()),
-  };
-  notifyClients(data);
-}
+// Removed broadcastFolders - frontend localStorage is the source of truth
+// Backend only provides Git info updates via GIT_INFO_UPDATE messages
 
 // API to list directories for a folder picker (Fallback for non-GUI environments)
 app.get("/api/ls", (c) => {
@@ -162,10 +178,10 @@ app.post("/api/pick-folder", async (c) => {
       const path = await os.pickFolder();
       notifyClients({
         type: "FOLDER_PICKED",
-        path: path
+        path: path,
       });
     })();
-    
+
     return c.json({ success: true, message: "Picker started" });
   } catch (e) {
     console.error("Failed to open system picker:", e);
@@ -176,10 +192,10 @@ app.post("/api/pick-folder", async (c) => {
 // API to open folder in IDEs
 app.post("/api/open/vscode_family", async (c) => {
   const { path, appName } = await c.req.json();
-  
+
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
   if (!appName) return c.json({ error: "Missing appName" }, 400);
-  
+
   console.log(`Opening ${appName} for path:`, path);
   try {
     await os.openInIDE(appName, path);
@@ -199,22 +215,26 @@ app.post("/api/delete", async (c) => {
     try {
       console.log(`Deleting folder: ${path}`);
       rmSync(path, { recursive: true, force: true });
-      
+
       // Cleanup internal state
       const id = Buffer.from(path).toString("base64");
-      folders.delete(id);
+      watchedPaths.delete(path);
       const watcherInfo = watchers.get(id);
       if (watcherInfo) {
         watcherInfo.watcher.close();
         watcherInfo.gitWatcher.close();
         watchers.delete(id);
       }
-      
-      broadcastFolders();
+
       notifyClients({ type: "DELETION_COMPLETE", path, success: true });
     } catch (e: any) {
       console.error("Deletion failed:", e);
-      notifyClients({ type: "DELETION_COMPLETE", path, success: false, error: e.message });
+      notifyClients({
+        type: "DELETION_COMPLETE",
+        path,
+        success: false,
+        error: e.message,
+      });
     }
   })();
 
@@ -224,12 +244,11 @@ app.post("/api/delete", async (c) => {
 app.post("/api/write-file", async (c) => {
   const { path, filename, content } = await c.req.json();
   if (!path || !filename) return c.json({ error: "Missing parameters" }, 400);
-  
+
   try {
     const fullPath = join(path, filename);
     console.log(`Writing managed file to: ${fullPath}`);
-    const buffer = Buffer.from(content, "utf-8");
-    await Bun.write(fullPath, buffer);
+    writeFileSync(fullPath, content, "utf-8");
     return c.json({ success: true });
   } catch (e) {
     console.error("Failed to write file:", e);
@@ -263,10 +282,12 @@ function copyFolderRobustly(src: string, dest: string) {
   }
 
   // 4. Copy non-ignored files using git ls-files
-  const filesToCopy = execSync(`git ls-files -z -co --exclude-standard`, { cwd: src })
+  const filesToCopy = execSync(`git ls-files -z -co --exclude-standard`, {
+    cwd: src,
+  })
     .toString()
     .split("\0")
-    .filter(f => f.trim().length > 0);
+    .filter((f) => f.trim().length > 0);
 
   for (const file of filesToCopy) {
     const srcFile = join(src, file);
@@ -312,10 +333,10 @@ app.post("/api/move-bulk", async (c) => {
     const results = [];
     for (const src of paths) {
       if (!existsSync(src)) continue;
-      
+
       const folderName = basename(src);
       const dest = join(targetParent, folderName);
-      
+
       if (existsSync(dest)) {
         results.push({ path: src, success: false, error: "Target exists" });
         continue;
@@ -324,13 +345,13 @@ app.post("/api/move-bulk", async (c) => {
       try {
         console.log(`Moving ${src} to ${dest}`);
         copyFolderRobustly(src, dest);
-        
+
         // Cleanup original
         rmSync(src, { recursive: true, force: true });
-        
+
         // Cleanup internal state
         const id = Buffer.from(src).toString("base64");
-        folders.delete(id);
+        watchedPaths.delete(src);
         const watcherInfo = watchers.get(id);
         if (watcherInfo) {
           watcherInfo.watcher.close();
@@ -345,7 +366,6 @@ app.post("/api/move-bulk", async (c) => {
       }
     }
 
-    broadcastFolders();
     notifyClients({ type: "MOVE_BULK_COMPLETE", results });
   })();
 
@@ -361,10 +381,10 @@ app.post("/api/duplicate", async (c) => {
     try {
       const parentDir = join(path, "..");
       const fullName = basename(path);
-      
+
       // Check if name already ends with "-number"
       const match = fullName.match(/^(.*?)-(\d+)$/);
-      const baseName = match ? (match[1] || fullName) : fullName;
+      const baseName = match ? match[1] || fullName : fullName;
       let counter = match ? parseInt(match[2] || "0") + 1 : 1;
 
       let newPath = "";
@@ -378,10 +398,20 @@ app.post("/api/duplicate", async (c) => {
       console.log(`Duplicating ${path} to ${newPath}`);
       copyFolderRobustly(path, newPath);
 
-      notifyClients({ type: "DUPLICATION_COMPLETE", path, newPath, success: true });
+      notifyClients({
+        type: "DUPLICATION_COMPLETE",
+        path,
+        newPath,
+        success: true,
+      });
     } catch (e: any) {
       console.error("Duplication failed:", e);
-      notifyClients({ type: "DUPLICATION_COMPLETE", path, success: false, error: e.message });
+      notifyClients({
+        type: "DUPLICATION_COMPLETE",
+        path,
+        success: false,
+        error: e.message,
+      });
     }
   })();
 
@@ -392,36 +422,35 @@ app.post("/api/watch", async (c) => {
   const { path } = await c.req.json();
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
 
-  const folder = startWatching(path);
-  return c.json(folder);
+  startWatching(path);
+  const gitInfo = getGitInfo(path);
+  return c.json({ path, ...gitInfo });
 });
 
-// New API for bulk watching
+// New API for bulk watching - returns Git info for paths that exist
 app.post("/api/watch-bulk", async (c) => {
   const { paths } = await c.req.json();
-  if (!Array.isArray(paths)) return c.json({ error: "Paths must be an array" }, 400);
+  if (!Array.isArray(paths))
+    return c.json({ error: "Paths must be an array" }, 400);
 
-  const results = [];
+  const results: Record<
+    string,
+    { branch: string; diffCount: number; latestCommit: string }
+  > = {};
   for (const path of paths) {
     if (path && existsSync(path)) {
-      results.push(startWatching(path, false)); // Don't broadcast for each folder
+      startWatching(path, false); // Don't broadcast for each folder
+      results[path] = getGitInfo(path);
     }
   }
 
-  if (results.length > 0) {
-    broadcastFolders(); // Broadcast once at the end
-  }
-
-  return c.json({ imported: results.length, total: paths.length });
+  return c.json(results); // Return path -> gitInfo mapping
 });
 
 function startWatching(path: string, shouldBroadcast = true) {
   const id = Buffer.from(path).toString("base64");
-  if (!folders.has(id)) {
-    const name = basename(path);
-    const gitInfo = getGitInfo(path);
-    const folder = { id, name, path, ...gitInfo };
-    folders.set(id, folder);
+  if (!watchedPaths.has(path)) {
+    watchedPaths.add(path);
 
     const watcher = watch([path], {
       ignoreInitial: true,
@@ -430,133 +459,115 @@ function startWatching(path: string, shouldBroadcast = true) {
     });
 
     // Also watch .git/HEAD and .git/index specifically for git changes
-    const gitWatcher = watch([join(path, ".git/HEAD"), join(path, ".git/index")], {
-      ignoreInitial: true,
-    });
+    const gitWatcher = watch(
+      [join(path, ".git/HEAD"), join(path, ".git/index")],
+      {
+        ignoreInitial: true,
+      },
+    );
 
     const update = () => {
       const updatedGitInfo = getGitInfo(path);
-      const updatedName = basename(path);
-      const folderData = folders.get(id);
-      if (folderData) {
-        const updated = { ...folderData, ...updatedGitInfo, name: updatedName };
-        folders.set(id, updated);
-        broadcastFolders();
-      }
+      // Notify clients about Git info update for this specific path
+      notifyClients({
+        type: "GIT_INFO_UPDATE",
+        path,
+        ...updatedGitInfo,
+      });
     };
 
     watcher.on("all", update);
     gitWatcher.on("all", update);
 
     watchers.set(id, { watcher, gitWatcher });
-    if (shouldBroadcast) {
-      broadcastFolders();
-    }
-    return folder;
   }
-  return folders.get(id)!;
 }
 
-app.get("/api/folders", (c) => {
-  return c.json(Array.from(folders.values()));
+// API to get Git info for paths - frontend sends paths, backend returns Git info
+app.post("/api/git-info", async (c) => {
+  const { paths } = await c.req.json();
+  if (!Array.isArray(paths))
+    return c.json({ error: "Paths must be an array" }, 400);
+
+  const results: Record<
+    string,
+    { branch: string; diffCount: number; latestCommit: string }
+  > = {};
+  for (const path of paths) {
+    if (path && existsSync(path)) {
+      results[path] = getGitInfo(path);
+    }
+  }
+
+  return c.json(results);
 });
 
-// Serve static files (either embedded or from dist folder)
-if (embeddedAssets) {
-  console.log("Serving from embedded assets");
-  app.get("*", async (c, next) => {
-    const path = c.req.path === "/" ? "/index.html" : c.req.path;
-    const asset = embeddedAssets![path];
-    if (asset) {
-      return c.body(Buffer.from(asset.content, "base64"), 200, {
-        "Content-Type": asset.contentType,
-      });
-    }
-    // Fallback for SPA routing
-    if (!c.req.path.startsWith("/api") && c.req.path !== "/ws") {
-      const index = embeddedAssets!["/index.html"];
-      if (index) {
-        return c.body(Buffer.from(index.content, "base64"), 200, {
-          "Content-Type": index.contentType,
-        });
-      }
-    }
-    return next();
-  });
-} else {
-  const possibleDistPaths = [
-    join(process.cwd(), "apps/web/dist"),
-    join(import.meta.dir, "../web/dist"),
-    "./apps/web/dist"
-  ];
+// Serve static files from dist folder
+const possibleDistPaths = [
+  join(process.cwd(), "apps/web/dist"),
+  join(__dirname, "dist-web"), // For npm package structure (same dir as index.js)
+  join(__dirname, "../web/dist"),
+  "./apps/web/dist",
+];
 
-  let distPath = "";
-  for (const p of possibleDistPaths) {
-    if (existsSync(p)) {
-      distPath = p;
-      break;
-    }
+let distPath = "";
+for (const p of possibleDistPaths) {
+  if (existsSync(p)) {
+    distPath = p;
+    break;
   }
+}
 
-  if (distPath) {
-    console.log(`Serving static files from: ${distPath}`);
-    app.use("/*", serveStatic({ 
+if (distPath) {
+  console.log(`Serving static files from: ${distPath}`);
+  app.use(
+    "/*",
+    serveStatic({
       root: relative(process.cwd(), distPath),
-      rewriteRequestPath: (path) => (path === "/" ? "/index.html" : path)
-    }));
+    }),
+  );
 
-    app.get("*", (c, next) => {
-      if (c.req.path.startsWith("/api") || c.req.path === "/ws") {
-        return next();
-      }
-      return serveStatic({ path: join(distPath, "index.html") })(c, next);
-    });
-  }
+  app.get("*", (c, next) => {
+    if (c.req.path.startsWith("/api") || c.req.path === "/ws") {
+      return next();
+    }
+    return serveStatic({ path: join(distPath, "index.html") })(c, next);
+  });
 }
 
 const clients = new Set<any>();
+
+const port = process.env.PORT ? parseInt(process.env.PORT) : defaultPort;
+
+const server = serve({
+  fetch: app.fetch,
+  port,
+});
+
+const wss = new WebSocketServer({ server: server as any, path: "/ws" });
+
+wss.on("connection", (ws: any) => {
+  clients.add(ws);
+  // Don't send folder data - frontend is the source of truth
+  // Frontend will request Git info for its stored paths
+
+  ws.on("close", () => {
+    clients.delete(ws);
+  });
+});
 
 function notifyClients(data: any) {
   const message = JSON.stringify(data);
   for (const client of clients) {
     try {
-      client.send(message);
+      if (client.readyState === 1) {
+        // 1 is OPEN in ws library
+        client.send(message);
+      }
     } catch {
       clients.delete(client);
     }
   }
 }
-
-const port = process.env.PORT ? parseInt(process.env.PORT) : defaultPort;
-
-Bun.serve({
-  port,
-  hostname: "0.0.0.0",
-  fetch(req, server) {
-    const url = new URL(req.url);
-    if (url.pathname === "/ws") {
-      if (server.upgrade(req)) {
-        return;
-      }
-      return new Response("Upgrade failed", { status: 400 });
-    }
-    return app.fetch(req);
-  },
-  websocket: {
-    open(ws) {
-      clients.add(ws);
-      ws.send(
-        JSON.stringify({
-          type: "UPDATE_FOLDERS",
-          folders: Array.from(folders.values()),
-        }),
-      );
-    },
-    close(ws) {
-      clients.delete(ws);
-    },
-    message(_ws, _msg) {},
-  },
-});
 
 console.log(`laoda Server running at http://localhost:${port}`);

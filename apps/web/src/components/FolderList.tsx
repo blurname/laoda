@@ -20,7 +20,9 @@ export const FolderList = () => {
     // Group by parent directory
     const groups = new Map<string, typeof folders>();
     sorted.forEach(f => {
-      const parent = f.path.split("/").slice(0, -1).join("/");
+      const parts = f.path.split("/").filter(Boolean);
+      if (parts.length <= 1) return; // Cannot group root or single level folders
+      const parent = "/" + parts.slice(0, -1).join("/");
       if (!groups.has(parent)) groups.set(parent, []);
       groups.get(parent)!.push(f);
     });
@@ -33,7 +35,12 @@ export const FolderList = () => {
     const processedParents = new Set<string>();
 
     sorted.forEach(f => {
-      const parent = f.path.split("/").slice(0, -1).join("/");
+      const parts = f.path.split("/").filter(Boolean);
+      if (parts.length <= 1) {
+        result.push({ type: "project", folder: f });
+        return;
+      }
+      const parent = "/" + parts.slice(0, -1).join("/");
       if (processedParents.has(parent)) return;
 
       const groupProjects = groups.get(parent)!;
@@ -41,7 +48,7 @@ export const FolderList = () => {
         result.push({
           type: "group",
           path: parent,
-          name: parent.split("/").pop() || parent,
+          name: parent.split("/").filter(Boolean).pop() || parent,
           children: groupProjects
         });
         processedParents.add(parent);
@@ -71,33 +78,84 @@ export const FolderList = () => {
         return;
       }
 
+      // 乐观更新：先保存原始数据（按路径索引），然后立即更新路径
+      const originalFoldersMap = new Map<string, typeof folders[0]>();
+      folders.forEach((f) => {
+        if (selectedPaths.includes(f.path)) {
+          originalFoldersMap.set(f.path, { ...f });
+        }
+      });
+
+      // 预测新路径并立即更新
+      setFolders((prev) =>
+        prev.map((f) => {
+          if (selectedPaths.includes(f.path)) {
+            const folderName = f.name.replace(/^Moving: /, "");
+            // Ensure targetParent doesn't end with slash and predictedPath doesn't have double slashes
+            const cleanParent = targetParent.endsWith("/") ? targetParent.slice(0, -1) : targetParent;
+            const predictedPath = `${cleanParent}/${folderName}`;
+            const name = predictedPath.split("/").filter(Boolean).pop() || predictedPath;
+            return {
+              ...f,
+              id: encodeURIComponent(predictedPath).replace(/%/g, "_"),
+              path: predictedPath,
+              name: `Moving: ${name}`,
+            };
+          }
+          return f;
+        })
+      );
+
       const results = await api.moveBulk(selectedPaths, targetParent);
       
       const failed = results.filter(r => !r.success);
+      const succeeded = results.filter(r => r.success);
       
+      // 更新为实际路径（可能与预测的不同）
+      if (succeeded.length > 0) {
+        setFolders((prev) =>
+          prev.map((f) => {
+            // 通过原始路径匹配结果
+            const result = succeeded.find((r) => {
+              const original = originalFoldersMap.get(r.path);
+              return original && original.id === f.id;
+            });
+            if (result) {
+              const newPath = result.newPath;
+              const name = newPath.split("/").pop() || newPath;
+              return {
+                ...f,
+                id: encodeURIComponent(newPath).replace(/%/g, "_"),
+                path: newPath,
+                name: name, // 移除 "Moving: " 前缀，恢复真实名字
+              };
+            }
+            return f;
+          })
+        );
+      }
+
+      // 如果有失败的，回滚失败的项
       if (failed.length > 0) {
         console.error("Some folders failed to move:", failed);
+        setFolders((prev) =>
+          prev.map((f) => {
+            // 检查当前文件夹是否对应失败的原始路径
+            for (const failedResult of failed) {
+              const original = originalFoldersMap.get(failedResult.path);
+              if (original && original.id === f.id) {
+                // 回滚：恢复原始数据
+                return original;
+              }
+            }
+            return f;
+          })
+        );
         setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Partial_Move_Failed", type: "error" } : t));
       } else {
         setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Move_Success", type: "success" } : t));
       }
       setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
-
-      // Update local state with new paths for successfully moved folders
-      setFolders(prev => prev.map(f => {
-        const result = results.find(r => r.path === f.path && r.success);
-        if (result) {
-          const newPath = result.newPath;
-          const name = newPath.split("/").pop() || newPath;
-          return {
-            ...f,
-            id: encodeURIComponent(newPath).replace(/%/g, "_"),
-            path: newPath,
-            name: name
-          };
-        }
-        return f;
-      }));
 
       // Start watching the new locations
       for (const result of results) {

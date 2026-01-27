@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { FolderInfo, selectedIDEAtom, foldersAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo } from "../store/atoms";
 import { api } from "../utils/api";
@@ -17,6 +17,20 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
   const setToasts = useSetAtom(toastsAtom);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const duplicateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const deleteToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (duplicateToastTimeoutRef.current) {
+        clearTimeout(duplicateToastTimeoutRef.current);
+      }
+      if (deleteToastTimeoutRef.current) {
+        clearTimeout(deleteToastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const isSelected = selectedPaths.includes(folder.path);
 
@@ -47,38 +61,99 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
   const handleDuplicate = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isDuplicating) return;
+    
+    // 清除之前的定时器
+    if (duplicateToastTimeoutRef.current) {
+      clearTimeout(duplicateToastTimeoutRef.current);
+      duplicateToastTimeoutRef.current = null;
+    }
+    
     setIsDuplicating(true);
     
     const toastId = Math.random().toString(36).substring(7);
+    const tempId = `optimistic-${Math.random().toString(36).substring(7)}`;
     setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Duplicating...", type: "loading" }]);
 
-    try {
-      const newPath = await api.duplicateFolder(folder.path);
-      const name = newPath.split("/").pop() || newPath;
-      const id = encodeURIComponent(newPath).replace(/%/g, "_");
-      
+    // 乐观更新：使用临时 ID，并标记为正在预测路径
+    const parts = folder.path.split("/").filter(Boolean);
+    const parentDir = "/" + parts.slice(0, -1).join("/");
+    const baseName = folder.name.replace(/^Copying: /, "").replace(/-\d+$/, "");
+    
+    setFolders((prev) => {
+      // 仍然在前端做一个初步预测以提供即时反馈
+      let counter = 1;
+      let predictedPath = "";
+      while (true) {
+        const testPath = `${parentDir}/${baseName}-${counter}`;
+        if (!prev.find((f) => f.path === testPath)) {
+          predictedPath = testPath;
+          break;
+        }
+        counter++;
+      }
+
+      const name = predictedPath.split("/").filter(Boolean).pop() || predictedPath;
       const newFolder = {
-        id,
-        name,
-        path: newPath,
-        branch: "loading...",
+        id: tempId,
+        name: `Copying: ${name}`,
+        path: predictedPath,
+        branch: "predicting...",
         diffCount: 0,
         latestCommit: "",
       };
+      return [...prev, newFolder];
+    });
 
-      setFolders((prev) => {
-        if (prev.find((f) => f.path === newPath)) return prev;
-        return [...prev, newFolder];
-      });
+    try {
+      const newPath = await api.duplicateFolder(folder.path);
+      
+      // 使用 tempId 匹配，更新为后端返回的真实路径
+      setFolders((prev) =>
+        prev.map((f) =>
+          f.id === tempId
+            ? {
+                ...f,
+                id: encodeURIComponent(newPath).replace(/%/g, "_"),
+                name: newPath.split("/").filter(Boolean).pop() || newPath,
+                path: newPath,
+                branch: "loading...",
+              }
+            : f
+        )
+      );
 
-      await api.watchFolder(newPath);
+      // 获取 Git 信息
+      try {
+        const gitInfo = await api.watchFolder(newPath);
+        const finalName = newPath.split("/").filter(Boolean).pop() || newPath;
+        // 此时 id 已经更新为基于真实路径的值，使用路径匹配
+        setFolders((prev) =>
+          prev.map((f) => (f.path === newPath ? { ...f, ...gitInfo, name: finalName } : f))
+        );
+      } catch (watchErr) {
+        console.error("Failed to watch folder:", watchErr);
+      }
+
       setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Duplicate_Success", type: "success" } : t));
+      
+      // 设置定时器清除 toast
+      duplicateToastTimeoutRef.current = setTimeout(() => {
+        setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId));
+        duplicateToastTimeoutRef.current = null;
+      }, 2000);
     } catch (err: any) {
       console.error("Duplication failed:", err);
+      // 回滚：通过 tempId 移除乐观添加的文件夹
+      setFolders((prev) => prev.filter((f) => f.id !== tempId));
       setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Duplicate_Failed", type: "error" } : t));
+      
+      // 错误时也设置定时器清除 toast
+      duplicateToastTimeoutRef.current = setTimeout(() => {
+        setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId));
+        duplicateToastTimeoutRef.current = null;
+      }, 2000);
     } finally {
       setIsDuplicating(false);
-      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     }
   };
 
@@ -88,20 +163,45 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     const confirmDelete = window.confirm(`Are you sure you want to permanently DELETE the folder at:\n${folder.path}?\n\nThis action cannot be undone.`);
     if (!confirmDelete) return;
 
+    // 清除之前的定时器
+    if (deleteToastTimeoutRef.current) {
+      clearTimeout(deleteToastTimeoutRef.current);
+      deleteToastTimeoutRef.current = null;
+    }
+
     setIsDeleting(true);
     const toastId = Math.random().toString(36).substring(7);
     setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Deleting...", type: "loading" }]);
 
+    // 乐观更新：先保存要删除的文件夹数据，然后立即移除
+    const deletedFolder = { ...folder };
+    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+
     try {
       await api.deleteFolder(folder.path);
-      setFolders((prev) => prev.filter((f) => f.id !== folder.id));
       setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Delete_Success", type: "success" } : t));
+      
+      // 设置定时器清除 toast
+      deleteToastTimeoutRef.current = setTimeout(() => {
+        setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId));
+        deleteToastTimeoutRef.current = null;
+      }, 2000);
     } catch (err: any) {
       console.error("Deletion failed:", err);
+      // 回滚：恢复被删除的文件夹
+      setFolders((prev) => {
+        if (prev.find((f) => f.id === deletedFolder.id)) return prev;
+        return [...prev, deletedFolder];
+      });
       setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Delete_Failed", type: "error" } : t));
+      
+      // 错误时也设置定时器清除 toast
+      deleteToastTimeoutRef.current = setTimeout(() => {
+        setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId));
+        deleteToastTimeoutRef.current = null;
+      }, 2000);
     } finally {
       setIsDeleting(false);
-      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     }
   };
 

@@ -1,8 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 
 export const DataView: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [importText, setImportText] = useState("");
+  const [isCopying, setIsCopying] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 清理定时器
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [storageData] = useState<Record<string, any>>(() => {
     const data: Record<string, any> = {};
@@ -53,6 +64,31 @@ export const DataView: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleCopy = async () => {
+    if (isCopying) return;
+    
+    // 清除之前的定时器
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = null;
+    }
+    
+    setIsCopying(true);
+    try {
+      const jsonText = JSON.stringify(storageData, null, 2);
+      await navigator.clipboard.writeText(jsonText);
+      // 复制成功后，设置定时器重置状态
+      copyTimeoutRef.current = setTimeout(() => {
+        setIsCopying(false);
+        copyTimeoutRef.current = null;
+      }, 2000);
+    } catch (err) {
+      console.error("Copy failed:", err);
+      setIsCopying(false);
+      copyTimeoutRef.current = null;
+    }
+  };
+
   return (
     <div className="bg-zinc-50 border border-zinc-300 shadow-sm overflow-hidden h-full flex flex-col">
       <div className="bg-zinc-100 border-b border-zinc-300 px-4 py-2 flex justify-between items-center shrink-0">
@@ -81,6 +117,17 @@ export const DataView: React.FC = () => {
             </>
           ) : (
             <>
+              <button 
+                onClick={handleCopy}
+                disabled={isCopying}
+                className={`px-3 py-1 text-[9px] font-black capitalize tracking-widest border transition-all ${
+                  isCopying
+                    ? "bg-zinc-500 text-zinc-100 border-zinc-600"
+                    : "bg-zinc-200 text-zinc-600 border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400"
+                }`}
+              >
+                {isCopying ? "Copied" : "Copy_Data"}
+              </button>
               <button 
                 onClick={handleExport}
                 className="px-3 py-1 bg-zinc-200 text-zinc-600 text-[9px] font-black capitalize tracking-widest border border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400 transition-all"

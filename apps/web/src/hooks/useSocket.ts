@@ -4,7 +4,7 @@ import { foldersAtom, isConnectedAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
 // Simple global event registry for async operations
-type Resolver = (data: any) => void;
+type Resolver = (data: any) => boolean; // return true if handled and should be removed
 const resolvers: Record<string, Resolver[]> = {
   FOLDER_PICKED: [],
   DUPLICATION_COMPLETE: [],
@@ -37,35 +37,46 @@ export const useSocket = () => {
       socket.onopen = () => {
         console.log("WebSocket Connected");
         setIsConnected(true);
-        // Sync existing folders with backend on connection
+        // Request Git info for existing folders from localStorage
         if (foldersRef.current.length > 0) {
-          api.watchBulk(foldersRef.current.map((f) => f.path))
+          const paths = foldersRef.current.map((f) => f.path);
+          api.watchBulk(paths)
+            .then((gitInfoMap) => {
+              // Update local folders with Git info from backend
+              setFolders((prev) =>
+                prev.map((folder) => {
+                  const gitInfo = gitInfoMap[folder.path];
+                  if (gitInfo) {
+                    return { ...folder, ...gitInfo };
+                  }
+                  return folder;
+                })
+              );
+            })
             .catch((err) => console.error("Failed to sync folders:", err));
         }
       };
 
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        if (data.type === "UPDATE_FOLDERS") {
-          setFolders((prev) => {
-            const serverFolders = data.folders as any[];
-            // If local is empty, sync from server directly
-            if (prev.length === 0 && serverFolders.length > 0) {
-              return serverFolders;
-            }
-            // Update existing ones
-            return prev.map((local) => {
-              const updated = serverFolders.find((s) => s.path === local.path);
-              return updated ? { ...local, ...updated } : local;
-            });
-          });
+        if (data.type === "GIT_INFO_UPDATE") {
+          // Update Git info for a specific path
+          setFolders((prev) =>
+            prev.map((folder) => {
+              if (folder.path === data.path) {
+                return {
+                  ...folder,
+                  branch: data.branch,
+                  diffCount: data.diffCount,
+                  latestCommit: data.latestCommit,
+                };
+              }
+              return folder;
+            })
+          );
         } else if (resolvers[data.type]) {
-          // Resolve any pending requests for this type
-          const typeResolvers = resolvers[data.type];
-          while (typeResolvers.length > 0) {
-            const resolve = typeResolvers.shift();
-            if (resolve) resolve(data);
-          }
+          // Filter out resolvers that return true (handled)
+          resolvers[data.type] = resolvers[data.type].filter(resolve => !resolve(data));
         }
       };
 

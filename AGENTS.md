@@ -9,6 +9,18 @@
 *   OS 适配: 抽象 OS 层，当前仅支持 macOS (osa脚本选择文件夹/open命令启动)。
 *   技术栈: Bun + Hono (Server) | React + RSBuild + Jotai (Web)。
 
+### 数据流原则 (Data Flow Principles)
+*   前端权威源: 前端 `localStorage` 存储完整的文件夹信息（id, name, path），是数据的唯一真理源。
+*   后端增强: 后端不存储或发送完整文件夹对象，只验证路径存在性并提供 Git 信息增强（branch, diffCount, latestCommit）。
+*   主动请求: 前端连接时主动发送路径列表，后端返回对应的 Git 信息映射。
+*   WebSocket 更新: 文件变化时，后端通过 `GIT_INFO_UPDATE` 消息推送单个路径的 Git 信息更新。
+
+### 乐观更新规则 (Optimistic Update Rules)
+*   立即响应: 所有异步操作（复制、删除、导入、移动）必须立即更新前端状态，无需等待后端响应。
+*   失败回滚: 操作失败时自动回滚到原始状态，确保数据一致性。
+*   操作独立: 每条数据的操作必须独立跟踪，通过路径或 ID 匹配，避免并发操作互相影响。
+*   部分失败: 批量操作中，只回滚失败的项，成功的项保持更新状态。
+
 ## 2. 交互与设计规范 (Hard Rules)
 
 ### 禁止清单 (Strictly Forbidden)

@@ -38,13 +38,12 @@ export const Toolbar = () => {
         return;
       }
 
-      // Update local storage first to ensure UI is responsive and data is persistent
-      const name = path.split("/").pop() || path;
-      // Use a more robust ID generation that handles non-ASCII characters
+      // 乐观更新：立即添加文件夹
+      const name = path.split("/").filter(Boolean).pop() || path;
       const id = encodeURIComponent(path).replace(/%/g, "_");
       const newFolder = {
         id,
-        name,
+        name: `Importing: ${name}`,
         path,
         branch: "loading...",
         diffCount: 0,
@@ -56,12 +55,26 @@ export const Toolbar = () => {
         return [...prev, newFolder];
       });
 
-      await api.watchFolder(path);
+      // 获取 Git 信息
+      try {
+        const gitInfo = await api.watchFolder(path);
+        const finalName = path.split("/").filter(Boolean).pop() || path;
+        setFolders((prev) =>
+          prev.map((f) => (f.path === path ? { ...f, ...gitInfo, name: finalName } : f))
+        );
+      } catch (watchErr) {
+        console.error("Failed to watch folder:", watchErr);
+        // watchFolder 失败时回滚：移除已添加的文件夹
+        setFolders((prev) => prev.filter((f) => f.path !== path));
+        throw watchErr;
+      }
       
       setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import_Success", type: "success" } : t));
       setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     } catch (err) {
       console.error("Import failed:", err);
+      // 如果 watchFolder 失败，上面的 catch 已经回滚了
+      // 如果是其他错误（如 pickFolder 失败），这里不需要回滚
       setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import_Failed", type: "error" } : t));
       setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 3000);
     } finally {
