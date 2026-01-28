@@ -65,7 +65,7 @@ export const api = {
     return res.json();
   },
 
-  async duplicateFolder(path: string): Promise<string> {
+  async duplicateFolder(path: string, includeFiles: string[] = []): Promise<string> {
     return new Promise(async (resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("Duplication timeout: No response from server"));
@@ -85,7 +85,7 @@ export const api = {
         const res = await fetch(`${API_BASE}/api/duplicate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path }),
+          body: JSON.stringify({ path, includeFiles }),
         });
         if (!res.ok) {
           clearTimeout(timeout);
@@ -98,7 +98,7 @@ export const api = {
     });
   },
 
-  async moveBulk(paths: string[], targetParent: string): Promise<any[]> {
+  async moveBulk(paths: string[], targetParent: string, includeFiles: string[] = []): Promise<any[]> {
     return new Promise(async (resolve, reject) => {
       registerResolver("MOVE_BULK_COMPLETE", (data) => {
         // Since MOVE_BULK_COMPLETE usually happens once for the entire request,
@@ -111,7 +111,7 @@ export const api = {
         const res = await fetch(`${API_BASE}/api/move-bulk`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paths, targetParent }),
+          body: JSON.stringify({ paths, targetParent, includeFiles }),
         });
         if (!res.ok) {
           reject(new Error("Failed to move folders"));

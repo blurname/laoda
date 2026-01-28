@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { FolderInfo, selectedIDEAtom, foldersAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo } from "../store/atoms";
+import { FolderInfo, selectedIDEAtom, foldersAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo, settingsAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
 interface FolderCardProps {
@@ -11,6 +11,7 @@ interface FolderCardProps {
 
 export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnected, isGroup }) => {
   const ideConfig = useAtomValue(selectedIDEAtom);
+  const settings = useAtomValue(settingsAtom);
   const setFolders = useSetAtom(foldersAtom);
   const isMultiSelect = useAtomValue(isMultiSelectModeAtom);
   const [selectedPaths, setSelectedPaths] = useAtom(selectedPathsAtom);
@@ -105,7 +106,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     });
 
     try {
-      const newPath = await api.duplicateFolder(folder.path);
+      const newPath = await api.duplicateFolder(folder.path, settings.copyIncludeFiles);
       
       // 使用 tempId 匹配，更新为后端返回的真实路径
       setFolders((prev) =>

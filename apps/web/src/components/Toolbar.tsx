@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import { selectedIDEAtom, foldersAtom, viewAtom, managedFilesAtom, toastsAtom, ToastInfo } from "../store/atoms";
+import { selectedIDEAtom, foldersAtom, viewAtom, managedFilesAtom, toastsAtom, ToastInfo, settingsAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
 const SUPPORTED_IDES = [
@@ -16,6 +16,8 @@ export const Toolbar = () => {
   const [isPicking, setIsPicking] = useState(false);
   const pickingLock = useRef(false);
   const [ideConfig, setIdeConfig] = useAtom(selectedIDEAtom);
+  const [settings, setSettings] = useAtom(settingsAtom);
+  const [showSettings, setShowSettings] = useState(false);
   const [currentView, setCurrentView] = useAtom(viewAtom);
   const setFolders = useSetAtom(foldersAtom);
   const setManagedFiles = useSetAtom(managedFilesAtom);
@@ -167,6 +169,40 @@ export const Toolbar = () => {
       </div>
 
       <div className="flex items-center gap-6">
+        <div className="relative">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`px-3 py-1.5 text-[10px] font-bold tracking-[0.2em] transition-all border ${
+              showSettings 
+                ? "bg-zinc-700 text-zinc-100 border-zinc-700" 
+                : "bg-zinc-200 text-zinc-600 border-zinc-300 hover:bg-zinc-300"
+            }`}
+          >
+            Settings
+          </button>
+          
+          {showSettings && (
+            <div className="absolute right-0 mt-2 w-72 bg-zinc-50 border border-zinc-300 shadow-xl p-4 z-[100]">
+              <h4 className="text-[10px] font-black text-zinc-400 tracking-widest mb-3 border-b border-zinc-200 pb-1">Copy options</h4>
+              <div className="space-y-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-bold text-zinc-600">Include files (one per line)</label>
+                  <textarea
+                    value={settings.copyIncludeFiles.join("\n")}
+                    onChange={(e) => {
+                      const files = e.target.value.split("\n").map(f => f.trim()).filter(Boolean);
+                      setSettings(prev => ({ ...prev, copyIncludeFiles: files }));
+                    }}
+                    placeholder=".env.local"
+                    className="w-full h-24 bg-zinc-100 border border-zinc-200 p-2 text-[10px] font-mono text-zinc-700 focus:outline-none focus:border-zinc-400 resize-none leading-relaxed"
+                  />
+                  <p className="text-[9px] text-zinc-400 italic">Files listed here will be copied even if ignored by git.</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {currentView === "sync" ? (
           <button
             onClick={() => {

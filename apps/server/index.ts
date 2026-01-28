@@ -256,7 +256,7 @@ app.post("/api/write-file", async (c) => {
   }
 });
 
-function copyFolderRobustly(src: string, dest: string) {
+function copyFolderRobustly(src: string, dest: string, includeFiles: string[] = []) {
   if (!existsSync(src)) return;
 
   // 1. Create target dir
@@ -282,12 +282,27 @@ function copyFolderRobustly(src: string, dest: string) {
   }
 
   // 4. Copy non-ignored files using git ls-files
-  const filesToCopy = execSync(`git ls-files -z -co --exclude-standard`, {
-    cwd: src,
-  })
-    .toString()
-    .split("\0")
-    .filter((f) => f.trim().length > 0);
+  const filesToCopySet = new Set<string>();
+  try {
+    const gitFiles = execSync(`git ls-files -z -co --exclude-standard`, {
+      cwd: src,
+    })
+      .toString()
+      .split("\0")
+      .filter((f) => f.trim().length > 0);
+    gitFiles.forEach(f => filesToCopySet.add(f));
+  } catch (e) {
+    console.warn(`Git ls-files failed in ${src}, falling back to includeFiles only:`, e);
+  }
+
+  // Add explicitly included files even if ignored by git
+  for (const file of includeFiles) {
+    if (existsSync(join(src, file))) {
+      filesToCopySet.add(file);
+    }
+  }
+
+  const filesToCopy = Array.from(filesToCopySet);
 
   for (const file of filesToCopy) {
     const srcFile = join(src, file);
@@ -323,7 +338,7 @@ function copyFolderRobustly(src: string, dest: string) {
 }
 
 app.post("/api/move-bulk", async (c) => {
-  const { paths, targetParent } = await c.req.json();
+  const { paths, targetParent, includeFiles = [] } = await c.req.json();
   if (!Array.isArray(paths) || !targetParent || !existsSync(targetParent)) {
     return c.json({ error: "Invalid parameters" }, 400);
   }
@@ -343,8 +358,8 @@ app.post("/api/move-bulk", async (c) => {
       }
 
       try {
-        console.log(`Moving ${src} to ${dest}`);
-        copyFolderRobustly(src, dest);
+        console.log(`Moving ${src} to ${dest} (including: ${includeFiles.join(", ")})`);
+        copyFolderRobustly(src, dest, includeFiles);
 
         // Cleanup original
         rmSync(src, { recursive: true, force: true });
@@ -373,7 +388,7 @@ app.post("/api/move-bulk", async (c) => {
 });
 
 app.post("/api/duplicate", async (c) => {
-  const { path } = await c.req.json();
+  const { path, includeFiles = [] } = await c.req.json();
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
 
   // Run in background
@@ -395,8 +410,8 @@ app.post("/api/duplicate", async (c) => {
         counter++;
       }
 
-      console.log(`Duplicating ${path} to ${newPath}`);
-      copyFolderRobustly(path, newPath);
+      console.log(`Duplicating ${path} to ${newPath} (including: ${includeFiles.join(", ")})`);
+      copyFolderRobustly(path, newPath, includeFiles);
 
       notifyClients({
         type: "DUPLICATION_COMPLETE",

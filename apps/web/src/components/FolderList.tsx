@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useRef } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { foldersAtom, isConnectedAtom, isSortedByNameAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo } from "../store/atoms";
+import { foldersAtom, isConnectedAtom, isSortedByNameAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo, settingsAtom } from "../store/atoms";
 import { FolderCard } from "./FolderCard";
 import { api } from "../utils/api";
 
 export const FolderList = () => {
   const [folders, setFolders] = useAtom(foldersAtom);
   const isConnected = useAtomValue(isConnectedAtom);
+  const settings = useAtomValue(settingsAtom);
   const [isSortedByName, setIsSortedByName] = useAtom(isSortedByNameAtom);
   const [isMultiSelect, setIsMultiSelect] = useAtom(isMultiSelectModeAtom);
   const [selectedPaths, setSelectedPaths] = useAtom(selectedPathsAtom);
@@ -106,7 +107,7 @@ export const FolderList = () => {
         })
       );
 
-      const results = await api.moveBulk(selectedPaths, targetParent);
+      const results = await api.moveBulk(selectedPaths, targetParent, settings.copyIncludeFiles);
       
       const failed = results.filter(r => !r.success);
       const succeeded = results.filter(r => r.success);

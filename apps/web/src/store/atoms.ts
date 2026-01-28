@@ -24,12 +24,17 @@ export interface IDEConfig {
   value: string;
 }
 
+export interface Settings {
+  copyIncludeFiles: string[];
+}
+
 export interface LaodaStorage {
   "imported-folders": FolderInfo[];
   "selected-ide-config": IDEConfig;
   "current-view": ViewType;
   "managed-files": ManagedFile[];
   "is-sorted-by-name": boolean;
+  "settings": Settings;
 }
 
 export const foldersAtom = atomWithStorage<LaodaStorage["imported-folders"]>("imported-folders", []);
@@ -37,6 +42,10 @@ export const foldersAtom = atomWithStorage<LaodaStorage["imported-folders"]>("im
 export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide-config"]>("selected-ide-config", {
   type: "preset",
   value: "Cursor"
+});
+
+export const settingsAtom = atomWithStorage<LaodaStorage["settings"]>("settings", {
+  copyIncludeFiles: [".env.local"]
 });
 
 export const viewAtom = atomWithStorage<LaodaStorage["current-view"]>(
