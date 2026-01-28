@@ -134,7 +134,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
         console.error("Failed to watch folder:", watchErr);
       }
 
-      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Duplicate_Success", type: "success" } : t));
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Duplicate success", type: "success" } : t));
       
       // 设置定时器清除 toast
       duplicateToastTimeoutRef.current = setTimeout(() => {
@@ -145,7 +145,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       console.error("Duplication failed:", err);
       // 回滚：通过 tempId 移除乐观添加的文件夹
       setFolders((prev) => prev.filter((f) => f.id !== tempId));
-      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Duplicate_Failed", type: "error" } : t));
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Duplicate failed", type: "error" } : t));
       
       // 错误时也设置定时器清除 toast
       duplicateToastTimeoutRef.current = setTimeout(() => {
@@ -179,7 +179,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
 
     try {
       await api.deleteFolder(folder.path);
-      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Delete_Success", type: "success" } : t));
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Delete success", type: "success" } : t));
       
       // 设置定时器清除 toast
       deleteToastTimeoutRef.current = setTimeout(() => {
@@ -193,7 +193,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
         if (prev.find((f) => f.id === deletedFolder.id)) return prev;
         return [...prev, deletedFolder];
       });
-      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Delete_Failed", type: "error" } : t));
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Delete failed", type: "error" } : t));
       
       // 错误时也设置定时器清除 toast
       deleteToastTimeoutRef.current = setTimeout(() => {
@@ -232,14 +232,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
           <div className="flex items-center gap-4 mb-2">
             <h3 className={`text-base font-bold tracking-tight truncate ${isBackendConnected ? "text-zinc-800" : "text-zinc-500"} ${isGroup ? "text-zinc-600 italic" : ""}`}>
               {folder.name}
-              {isGroup && <span className="ml-2 text-[10px] font-black opacity-40 not-italic uppercase tracking-widest">[Group]</span>}
+              {isGroup && <span className="ml-2 text-[10px] font-black opacity-40 not-italic tracking-widest">[group]</span>}
             </h3>
             
             <div className="flex items-center gap-2 flex-shrink-0">
               {!isGroup && (
                 <div className="flex items-center gap-1.5 bg-zinc-200/50 px-2 py-0.5 border border-zinc-200">
                   <span className="text-[11px] font-bold text-zinc-600">
-                    {folder.branch || "no-branch"}
+                    {folder.branch || "no branch"}
                   </span>
                 </div>
               )}
@@ -261,7 +261,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                   <button
                     onClick={handleDuplicate}
                     disabled={isDuplicating}
-                    className={`px-2 py-0.5 border text-[9px] font-black capitalize tracking-widest transition-all ${
+                    className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
                       isDuplicating
                         ? "bg-zinc-100 text-zinc-400 border-zinc-200"
                         : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-zinc-700 hover:text-zinc-100 hover:border-zinc-700 active:bg-zinc-800"
@@ -273,7 +273,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                   <button
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className={`px-2 py-0.5 border text-[9px] font-black capitalize tracking-widest transition-all ${
+                    className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
                       isDeleting
                         ? "bg-zinc-100 text-zinc-400 border-zinc-200"
                         : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-red-600 hover:text-white hover:border-red-700 active:bg-red-700"
@@ -286,7 +286,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
             </div>
 
             {!isGroup && folder.diffCount > 0 && isBackendConnected && (
-              <div className="text-[10px] font-black text-amber-500 bg-zinc-700 px-2 py-0.5 border border-zinc-800 capitalize tracking-tighter shadow-sm">
+              <div className="text-[10px] font-black text-amber-500 bg-zinc-700 px-2 py-0.5 border border-zinc-800 tracking-tighter shadow-sm">
                 {folder.diffCount} diff
               </div>
             )}
@@ -329,14 +329,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                 <path d="M3 6L5 8L9 4" stroke="currentColor" strokeWidth="2" fill="none" />
               </svg>
             ) : (
-              <span className="text-[9px] font-black capitalize">Add</span>
+              <span className="text-[9px] font-black">add</span>
             )
           ) : selectedIDE ? (
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
               <path d="M3 1L10 6L3 11V1Z" />
             </svg>
           ) : (
-            <span className="text-[10px] font-black capitalize tracking-[0.1em]">Off</span>
+            <span className="text-[10px] font-black tracking-[0.1em]">off</span>
           )}
         </div>
       </div>

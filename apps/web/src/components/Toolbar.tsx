@@ -27,7 +27,7 @@ export const Toolbar = () => {
     setIsPicking(true);
     
     const toastId = Math.random().toString(36).substring(7);
-    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Importing_Project...", type: "loading" }]);
+    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Importing project...", type: "loading" }]);
 
     try {
       const path = await api.pickFolder();
@@ -69,13 +69,13 @@ export const Toolbar = () => {
         throw watchErr;
       }
       
-      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import_Success", type: "success" } : t));
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import success", type: "success" } : t));
       setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     } catch (err) {
       console.error("Import failed:", err);
       // 如果 watchFolder 失败，上面的 catch 已经回滚了
       // 如果是其他错误（如 pickFolder 失败），这里不需要回滚
-      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import_Failed", type: "error" } : t));
+      setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Import failed", type: "error" } : t));
       setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 3000);
     } finally {
       pickingLock.current = false;
@@ -89,14 +89,14 @@ export const Toolbar = () => {
         <h1 className="text-xl font-bold text-zinc-900 tracking-tighter italic">laoda_</h1>
         
         <div className="flex items-center gap-0 border border-zinc-200 bg-zinc-200/50">
-          <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-zinc-500 capitalize tracking-[0.2em] border-r border-zinc-200">
+          <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-zinc-500 tracking-[0.2em] border-r border-zinc-200">
             <span>IDE</span>
           </div>
           <div className="relative border-r border-zinc-200">
             <select
               value={SUPPORTED_IDES.includes(selectedIDE || "") ? selectedIDE || "" : ""}
               onChange={(e) => e.target.value && setSelectedIDE(e.target.value)}
-              className="appearance-none bg-transparent pr-10 pl-4 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none capitalize tracking-wide cursor-default"
+              className="appearance-none bg-transparent pr-10 pl-4 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none tracking-wide cursor-default"
             >
               <option value="" disabled>Select...</option>
               {SUPPORTED_IDES.map((ide) => (
@@ -115,8 +115,8 @@ export const Toolbar = () => {
             type="text"
             value={selectedIDE || ""}
             onChange={(e) => setSelectedIDE(e.target.value || null)}
-            placeholder="Custom_Ide_Name"
-            className="bg-transparent px-4 py-1.5 text-[10px] font-bold text-zinc-700 focus:outline-none capitalize tracking-wider w-36 placeholder:text-zinc-400"
+            placeholder="Custom IDE name"
+            className="bg-transparent px-4 py-1.5 text-[10px] font-bold text-zinc-700 focus:outline-none tracking-wider w-36 placeholder:text-zinc-400"
           />
         </div>
       </div>
@@ -125,7 +125,7 @@ export const Toolbar = () => {
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 border border-zinc-300 p-0.5 bg-zinc-200/30">
         <button
           onClick={() => setCurrentView("list")}
-          className={`px-3 py-1 text-[9px] font-black capitalize tracking-widest transition-all ${
+          className={`px-3 py-1 text-[9px] font-black tracking-widest transition-all ${
             currentView === "list" 
               ? "bg-zinc-700 text-zinc-100 shadow-sm" 
               : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
@@ -135,7 +135,7 @@ export const Toolbar = () => {
         </button>
         <button
           onClick={() => setCurrentView("sync")}
-          className={`px-3 py-1 text-[9px] font-black capitalize tracking-widest transition-all ${
+          className={`px-3 py-1 text-[9px] font-black tracking-widest transition-all ${
             currentView === "sync" 
               ? "bg-zinc-700 text-zinc-100 shadow-sm" 
               : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
@@ -145,7 +145,7 @@ export const Toolbar = () => {
         </button>
         <button
           onClick={() => setCurrentView("data")}
-          className={`px-3 py-1 text-[9px] font-black capitalize tracking-widest transition-all ${
+          className={`px-3 py-1 text-[9px] font-black tracking-widest transition-all ${
             currentView === "data" 
               ? "bg-zinc-700 text-zinc-100 shadow-sm" 
               : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
@@ -167,17 +167,17 @@ export const Toolbar = () => {
                 targetPattern: ""
               }]);
             }}
-            className="bg-zinc-700 hover:bg-zinc-700/80 text-zinc-100 px-5 py-1.5 text-[10px] font-bold capitalize tracking-[0.2em] transition-all border border-zinc-700"
+            className="bg-zinc-700 hover:bg-zinc-700/80 text-zinc-100 px-5 py-1.5 text-[10px] font-bold tracking-[0.2em] transition-all border border-zinc-700"
           >
-            Create_Managed_File
+            Create managed file
           </button>
         ) : (
           <button
             onClick={handleImport}
             disabled={isPicking}
-            className="bg-zinc-700 hover:bg-zinc-700/80 disabled:bg-zinc-300 text-zinc-100 px-5 py-1.5 text-[10px] font-bold capitalize tracking-[0.2em] transition-all border border-zinc-700"
+            className="bg-zinc-700 hover:bg-zinc-700/80 disabled:bg-zinc-300 text-zinc-100 px-5 py-1.5 text-[10px] font-bold tracking-[0.2em] transition-all border border-zinc-700"
           >
-            {isPicking ? "Processing..." : "Import_Project"}
+            {isPicking ? "Processing..." : "Import project"}
           </button>
         )}
       </div>

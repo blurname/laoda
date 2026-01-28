@@ -67,7 +67,7 @@ export const FolderList = () => {
     setIsMoving(true);
     
     const toastId = Math.random().toString(36).substring(7);
-    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: `Moving_${selectedPaths.length}_Items...`, type: "loading" }]);
+    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: `Moving ${selectedPaths.length} items...`, type: "loading" }]);
 
     try {
       const targetParent = await api.pickFolder();
@@ -151,9 +151,9 @@ export const FolderList = () => {
             return f;
           })
         );
-        setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Partial_Move_Failed", type: "error" } : t));
+        setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Partial move failed", type: "error" } : t));
       } else {
-        setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Move_Success", type: "success" } : t));
+        setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Move success", type: "success" } : t));
       }
       setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
 
@@ -181,8 +181,8 @@ export const FolderList = () => {
     <div className="flex flex-col gap-2 relative">
       <div className="flex items-center justify-between mb-1 px-1">
         <div className="flex items-center gap-4">
-          <h2 className="text-[10px] font-black text-zinc-500 capitalize tracking-[0.2em] flex items-center gap-2">
-            Disk_Projects_List
+          <h2 className="text-[10px] font-black text-zinc-500 tracking-[0.2em] flex items-center gap-2">
+            Disk projects list
             <span className="bg-zinc-300 px-1 rounded-none text-zinc-600 font-mono">[{folders.length}]</span>
           </h2>
         </div>
@@ -193,23 +193,23 @@ export const FolderList = () => {
               setIsMultiSelect(!isMultiSelect);
               if (isMultiSelect) setSelectedPaths([]);
             }}
-            className={`px-2 py-0.5 border text-[9px] font-black capitalize tracking-widest transition-all ${
+            className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
               isMultiSelect
                 ? "bg-zinc-700 text-zinc-100 border-zinc-700 shadow-sm"
                 : "bg-zinc-200 text-zinc-500 border-zinc-300 hover:bg-zinc-300"
             }`}
           >
-            Multi_Select: {isMultiSelect ? "On" : "Off"}
+            Multi select: {isMultiSelect ? "on" : "off"}
           </button>
           <button
             onClick={() => setIsSortedByName(!isSortedByName)}
-            className={`px-2 py-0.5 border text-[9px] font-black capitalize tracking-widest transition-all ${
+            className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
               isSortedByName
                 ? "bg-zinc-700 text-zinc-100 border-zinc-700 shadow-sm"
                 : "bg-zinc-200 text-zinc-500 border-zinc-300 hover:bg-zinc-300"
             }`}
           >
-            Sort_By_Name: {isSortedByName ? "On" : "Off"}
+            Sort by name: {isSortedByName ? "on" : "off"}
           </button>
         </div>
       </div>
@@ -227,14 +227,14 @@ export const FolderList = () => {
               }`}
           >
             <span className="text-[24px] font-black mb-1">{selectedPaths.length}</span>
-            <span className="text-[10px] font-black capitalize tracking-[0.2em] leading-none">Move</span>
+            <span className="text-[10px] font-black tracking-[0.2em] leading-none">Move</span>
           </button>
         </div>
       )}
 
       {folders.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 border border-zinc-300 bg-zinc-50 text-zinc-400">
-          <p className="text-[10px] capitalize tracking-widest font-bold">No entries found in registry.</p>
+          <p className="text-[10px] tracking-widest font-bold">No entries found in registry.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-1.5 pb-10">
