@@ -93,7 +93,7 @@ export const DataView: React.FC = () => {
     <div className="bg-zinc-50 border border-zinc-300 shadow-sm overflow-hidden h-full flex flex-col">
       <div className="bg-zinc-100 border-b border-zinc-300 px-4 py-2 flex justify-between items-center shrink-0">
         <div className="flex items-center gap-4">
-          <h2 className="text-[10px] font-black tracking-[0.2em] text-zinc-600">Storage raw data</h2>
+          <h2 className="text-[10px] font-black text-zinc-600">Storage raw data</h2>
           <div className="text-[9px] font-mono text-zinc-400">
             Size: {new Blob([JSON.stringify(storageData)]).size} bytes
           </div>
@@ -104,13 +104,13 @@ export const DataView: React.FC = () => {
             <>
               <button 
                 onClick={() => setIsImporting(false)}
-                className="px-3 py-1 text-[9px] font-black tracking-widest text-zinc-500 hover:text-zinc-700"
+                className="px-3 py-1 text-[9px] font-black text-zinc-500 hover:text-zinc-700"
               >
                 Cancel
               </button>
               <button 
                 onClick={handleImport}
-                className="px-3 py-1 bg-zinc-700 text-zinc-100 text-[9px] font-black tracking-widest border border-zinc-800 shadow-sm active:bg-zinc-800 active:shadow-none transition-all"
+                className="px-3 py-1 bg-zinc-700 text-zinc-100 text-[9px] font-black border border-zinc-800 shadow-sm active:bg-zinc-800 active:shadow-none transition-all"
               >
                 Confirm import
               </button>
@@ -120,7 +120,7 @@ export const DataView: React.FC = () => {
               <button 
                 onClick={handleCopy}
                 disabled={isCopying}
-                className={`px-3 py-1 text-[9px] font-black tracking-widest border transition-all ${
+                className={`px-3 py-1 text-[9px] font-black border transition-all ${
                   isCopying
                     ? "bg-zinc-500 text-zinc-100 border-zinc-600"
                     : "bg-zinc-200 text-zinc-600 border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400"
@@ -130,13 +130,13 @@ export const DataView: React.FC = () => {
               </button>
               <button 
                 onClick={handleExport}
-                className="px-3 py-1 bg-zinc-200 text-zinc-600 text-[9px] font-black tracking-widest border border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400 transition-all"
+                className="px-3 py-1 bg-zinc-200 text-zinc-600 text-[9px] font-black border border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400 transition-all"
               >
                 Export data
               </button>
               <button 
                 onClick={() => setIsImporting(true)}
-                className="px-3 py-1 bg-zinc-200 text-zinc-600 text-[9px] font-black tracking-widest border border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400 transition-all"
+                className="px-3 py-1 bg-zinc-200 text-zinc-600 text-[9px] font-black border border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400 transition-all"
               >
                 Import data
               </button>

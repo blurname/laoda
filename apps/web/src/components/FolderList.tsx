@@ -276,7 +276,7 @@ export const FolderList = () => {
     <div className="flex flex-col gap-2 relative">
       <div className="flex items-center justify-between mb-1 px-1">
         <div className="flex items-center gap-4">
-          <h2 className="text-[10px] font-black text-zinc-500 tracking-[0.2em] flex items-center gap-2">
+          <h2 className="text-[10px] font-black text-zinc-500 flex items-center gap-2">
             Disk projects list
             <span className="bg-zinc-300 px-1 rounded-none text-zinc-600 font-mono">[{folders.length}]</span>
           </h2>
@@ -288,7 +288,7 @@ export const FolderList = () => {
               setIsMultiSelect(!isMultiSelect);
               if (isMultiSelect) setSelectedPaths([]);
             }}
-            className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
+            className={`px-2 py-0.5 border text-[9px] font-black transition-all ${
               isMultiSelect
                 ? "bg-zinc-700 text-zinc-100 border-zinc-700 shadow-sm"
                 : "bg-zinc-200 text-zinc-500 border-zinc-300 hover:bg-zinc-300"
@@ -297,13 +297,13 @@ export const FolderList = () => {
             Multi select: {isMultiSelect ? "on" : "off"}
           </button>
           <div className="flex items-center gap-0 border border-zinc-300 bg-zinc-200">
-            <div className="px-2 py-0.5 text-[9px] font-black tracking-widest text-zinc-500 border-r border-zinc-300">
+            <div className="px-2 py-0.5 text-[9px] font-black text-zinc-500 border-r border-zinc-300">
               Sort
             </div>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortType)}
-              className="bg-transparent px-2 py-0.5 text-[9px] font-black tracking-widest text-zinc-700 focus:outline-none cursor-default"
+              className="bg-transparent px-2 py-0.5 text-[9px] font-black text-zinc-700 focus:outline-none cursor-default"
             >
               <option value="added">Added time</option>
               <option value="name">Name</option>
@@ -328,7 +328,7 @@ export const FolderList = () => {
                   }`}
               >
                 <span className="text-[24px] font-black mb-1">{selectedPaths.length}</span>
-                <span className="text-[10px] font-black tracking-[0.2em] leading-none">Move</span>
+                <span className="text-[10px] font-black leading-none">Move</span>
               </button>
 
               <button
@@ -342,12 +342,12 @@ export const FolderList = () => {
                   }`}
               >
                 <span className="text-[24px] font-black mb-1">{selectedPaths.length}</span>
-                <span className="text-[10px] font-black tracking-[0.2em] leading-none">Group</span>
+                <span className="text-[10px] font-black leading-none">Group</span>
               </button>
             </>
           ) : (
             <div className="bg-zinc-50 border-2 border-zinc-700 p-4 shadow-2xl flex flex-col gap-3 w-48">
-              <h4 className="text-[10px] font-black text-zinc-400 tracking-widest uppercase">Group name</h4>
+              <h4 className="text-[10px] font-black text-zinc-400 uppercase">Group name</h4>
               <input
                 autoFocus
                 value={groupNameInput}
@@ -380,7 +380,7 @@ export const FolderList = () => {
 
       {folders.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 border border-zinc-300 bg-zinc-50 text-zinc-400">
-          <p className="text-[10px] tracking-widest font-bold">No entries found in registry.</p>
+          <p className="text-[10px] font-bold">No entries found in registry.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-1.5 pb-10">

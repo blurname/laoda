@@ -329,9 +329,9 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       <div className="flex items-center gap-6 flex-1 min-w-0 p-4 opacity-90">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-4 mb-2">
-            <h3 className={`text-base font-bold tracking-tight truncate ${isBackendConnected ? "text-zinc-800" : "text-zinc-500"} ${isGroup ? "text-zinc-600 italic" : ""}`}>
+            <h3 className={`text-base font-bold truncate ${isBackendConnected ? "text-zinc-800" : "text-zinc-500"} ${isGroup ? "text-zinc-600 italic" : ""}`}>
               {folder.name}
-              {isGroup && <span className="ml-2 text-[10px] font-black opacity-40 not-italic tracking-widest">[group]</span>}
+              {isGroup && <span className="ml-2 text-[10px] font-black opacity-40 not-italic">[group]</span>}
             </h3>
             
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -360,7 +360,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                   <button
                     onClick={handleDuplicate}
                     disabled={isDuplicating}
-                    className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
+                    className={`px-2 py-0.5 border text-[9px] font-black transition-all ${
                       isDuplicating
                         ? "bg-zinc-100 text-zinc-400 border-zinc-200"
                         : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-zinc-700 hover:text-zinc-100 hover:border-zinc-700 active:bg-zinc-800"
@@ -372,7 +372,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                   <button
                     onClick={handleDelete}
                     disabled={isDeleting}
-                    className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
+                    className={`px-2 py-0.5 border text-[9px] font-black transition-all ${
                       isDeleting
                         ? "bg-zinc-100 text-zinc-400 border-zinc-200"
                         : "bg-zinc-200/50 text-zinc-500 border-zinc-200 hover:bg-red-600 hover:text-white hover:border-red-700 active:bg-red-700"
@@ -385,7 +385,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                     <button
                       onClick={handleUngroup}
                       disabled={isUngrouping}
-                      className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
+                      className={`px-2 py-0.5 border text-[9px] font-black transition-all ${
                         isUngrouping
                           ? "bg-zinc-100 text-zinc-400 border-zinc-200"
                           : "bg-zinc-700 text-zinc-100 border-zinc-700 hover:bg-zinc-800"
@@ -399,7 +399,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
             </div>
 
             {!isGroup && folder.diffCount > 0 && isBackendConnected && (
-              <div className="text-[10px] font-black text-amber-500 bg-zinc-700 px-2 py-0.5 border border-zinc-800 tracking-tighter shadow-sm">
+              <div className="text-[10px] font-black text-amber-500 bg-zinc-700 px-2 py-0.5 border border-zinc-800 shadow-sm">
                 {folder.diffCount} diff
               </div>
             )}
@@ -449,7 +449,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
               <path d="M3 1L10 6L3 11V1Z" />
             </svg>
           ) : (
-            <span className="text-[10px] font-black tracking-[0.1em]">off</span>
+            <span className="text-[10px] font-black">off</span>
           )}
         </div>
       </div>

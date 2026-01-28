@@ -23,7 +23,7 @@ export const ToastContainer: React.FC = () => {
           {toast.type === "loading" && (
             <div className="w-3 h-3 border-2 border-zinc-400 border-t-zinc-100 rounded-full animate-spin" />
           )}
-          <span className="text-[11px] font-black tracking-widest">
+          <span className="text-[11px] font-black">
             {toast.message}
           </span>
         </div>
