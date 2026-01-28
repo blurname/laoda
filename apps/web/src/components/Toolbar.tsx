@@ -15,7 +15,7 @@ const SUPPORTED_IDES = [
 export const Toolbar = () => {
   const [isPicking, setIsPicking] = useState(false);
   const pickingLock = useRef(false);
-  const [selectedIDE, setSelectedIDE] = useAtom(selectedIDEAtom);
+  const [ideConfig, setIdeConfig] = useAtom(selectedIDEAtom);
   const [currentView, setCurrentView] = useAtom(viewAtom);
   const setFolders = useSetAtom(foldersAtom);
   const setManagedFiles = useSetAtom(managedFilesAtom);
@@ -94,8 +94,15 @@ export const Toolbar = () => {
           </div>
           <div className="relative border-r border-zinc-200">
             <select
-              value={SUPPORTED_IDES.includes(selectedIDE || "") ? selectedIDE || "" : ""}
-              onChange={(e) => e.target.value && setSelectedIDE(e.target.value)}
+              value={ideConfig.type === "custom" ? "custom" : ideConfig.value}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "custom") {
+                  setIdeConfig({ type: "custom", value: ideConfig.type === "custom" ? ideConfig.value : "" });
+                } else {
+                  setIdeConfig({ type: "preset", value: val });
+                }
+              }}
               className="appearance-none bg-transparent pr-10 pl-4 py-1.5 text-xs font-bold text-zinc-800 focus:outline-none tracking-wide cursor-default"
             >
               <option value="" disabled>Select...</option>
@@ -104,6 +111,8 @@ export const Toolbar = () => {
                   {ide}
                 </option>
               ))}
+              <option disabled>──────────</option>
+              <option value="custom">Custom</option>
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
               <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
@@ -111,13 +120,15 @@ export const Toolbar = () => {
               </svg>
             </div>
           </div>
-          <input
-            type="text"
-            value={selectedIDE || ""}
-            onChange={(e) => setSelectedIDE(e.target.value || null)}
-            placeholder="Custom IDE name"
-            className="bg-transparent px-4 py-1.5 text-[10px] font-bold text-zinc-700 focus:outline-none tracking-wider w-36 placeholder:text-zinc-400"
-          />
+          {ideConfig.type === "custom" && (
+            <input
+              type="text"
+              value={ideConfig.value}
+              onChange={(e) => setIdeConfig({ type: "custom", value: e.target.value })}
+              placeholder="vscode family"
+              className="bg-transparent px-4 py-1.5 text-[10px] font-bold text-zinc-700 focus:outline-none tracking-wider w-36 placeholder:text-zinc-400 border-l border-zinc-200"
+            />
+          )}
         </div>
       </div>
 

@@ -10,7 +10,7 @@ interface FolderCardProps {
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnected, isGroup }) => {
-  const selectedIDE = useAtomValue(selectedIDEAtom);
+  const ideConfig = useAtomValue(selectedIDEAtom);
   const setFolders = useSetAtom(foldersAtom);
   const isMultiSelect = useAtomValue(isMultiSelectModeAtom);
   const [selectedPaths, setSelectedPaths] = useAtom(selectedPathsAtom);
@@ -47,14 +47,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       toggleSelection();
       return;
     }
-    if (!selectedIDE) {
+    if (!ideConfig.value) {
       alert("Please select a target IDE first");
       return;
     }
     try {
-      await api.openInIDE(selectedIDE, folder.path);
+      await api.openInIDE(ideConfig.value, folder.path);
     } catch (err) {
-      console.error(`Failed to open ${selectedIDE}:`, err);
+      console.error(`Failed to open ${ideConfig.value}:`, err);
     }
   };
 
@@ -313,7 +313,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
         className={`w-14 shrink-0 flex items-center justify-center transition-all border-l select-none group/btn ${
           isMultiSelect
             ? isSelected ? "bg-zinc-700 border-zinc-800" : "bg-zinc-200 border-zinc-300 hover:bg-zinc-300"
-            : selectedIDE 
+            : ideConfig.value 
               ? "bg-zinc-200/50 border-zinc-200 hover:bg-zinc-700 hover:border-zinc-800 active:bg-zinc-800" 
               : "bg-zinc-100 border-zinc-200 opacity-50"
         }`}
@@ -321,7 +321,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
         <div className={`transition-colors ${
           isMultiSelect
             ? "text-zinc-100"
-            : selectedIDE ? "text-zinc-400 group-hover/btn:text-zinc-100" : "text-zinc-300"
+            : ideConfig.value ? "text-zinc-400 group-hover/btn:text-zinc-100" : "text-zinc-300"
         }`}>
           {isMultiSelect ? (
             isSelected ? (
@@ -331,7 +331,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
             ) : (
               <span className="text-[9px] font-black">add</span>
             )
-          ) : selectedIDE ? (
+          ) : ideConfig.value ? (
             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
               <path d="M3 1L10 6L3 11V1Z" />
             </svg>

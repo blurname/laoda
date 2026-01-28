@@ -19,9 +19,14 @@ export interface ManagedFile {
 
 export type ViewType = "list" | "data" | "sync";
 
+export interface IDEConfig {
+  type: "preset" | "custom";
+  value: string;
+}
+
 export interface LaodaStorage {
   "imported-folders": FolderInfo[];
-  "selected-ide": string | null;
+  "selected-ide-config": IDEConfig;
   "current-view": ViewType;
   "managed-files": ManagedFile[];
   "is-sorted-by-name": boolean;
@@ -29,7 +34,10 @@ export interface LaodaStorage {
 
 export const foldersAtom = atomWithStorage<LaodaStorage["imported-folders"]>("imported-folders", []);
 
-export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide"]>("selected-ide", "Cursor");
+export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide-config"]>("selected-ide-config", {
+  type: "preset",
+  value: "Cursor"
+});
 
 export const viewAtom = atomWithStorage<LaodaStorage["current-view"]>(
   "current-view",
