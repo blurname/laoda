@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { nodesAtom, isConnectedAtom } from "../store/atoms";
 import { api } from "../utils/api";
+import { flattenNodes, updateLeafNodes, normalizePath } from "../utils/nodes";
 import type { ServerMessage, ServerMessageType, ServerMessagePayload } from "@laoda/shared";
 
 // Simple global event registry for async operations
@@ -23,7 +24,6 @@ export const useSocket = () => {
   const setIsConnected = useSetAtom(isConnectedAtom);
   const nodesRef = useRef(nodes);
 
-  // Keep ref up to date for the socket closure/reconnect logic
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
@@ -39,35 +39,16 @@ export const useSocket = () => {
       socket.onopen = () => {
         console.log("WebSocket Connected");
         setIsConnected(true);
-        // Request Git info for all leaf nodes
-        const allPaths: string[] = [];
-        nodesRef.current.forEach(node => {
-          if (node.type === "leaf") {
-            allPaths.push(node.path);
-          } else {
-            node.children.forEach(child => allPaths.push(child.path));
-          }
-        });
-
-        if (allPaths.length > 0) {
-          api.watchBulk(allPaths)
+        
+        const allLeafs = flattenNodes(nodesRef.current);
+        if (allLeafs.length > 0) {
+          const paths = allLeafs.map(l => l.path);
+          api.watchBulk(paths)
             .then((gitInfoMap) => {
-              setNodes((prev) =>
-                prev.map((node) => {
-                  if (node.type === "leaf") {
-                    const gitInfo = gitInfoMap[node.path];
-                    return gitInfo ? { ...node, ...gitInfo } : node;
-                  } else {
-                    return {
-                      ...node,
-                      children: node.children.map(child => {
-                        const gitInfo = gitInfoMap[child.path];
-                        return gitInfo ? { ...child, ...gitInfo } : child;
-                      })
-                    };
-                  }
-                })
-              );
+              setNodes((prev) => updateLeafNodes(prev, (leaf) => {
+                const gitInfo = gitInfoMap[leaf.path];
+                return gitInfo ? { ...leaf, ...gitInfo } : leaf;
+              }));
             })
             .catch((err) => console.error("Failed to sync folders:", err));
         }
@@ -76,40 +57,21 @@ export const useSocket = () => {
       socket.onmessage = (event) => {
         const data: ServerMessage = JSON.parse(event.data);
         if (data.type === "GIT_INFO_UPDATE") {
-          setNodes((prev) =>
-            prev.map((node) => {
-              if (node.type === "leaf") {
-                if (node.path === data.path) {
-                  return {
-                    ...node,
-                    branch: data.branch,
-                    diffCount: data.diffCount,
-                    latestCommit: data.latestCommit,
-                  };
-                }
-                return node;
-              } else {
-                return {
-                  ...node,
-                  children: node.children.map(child => {
-                    if (child.path === data.path) {
-                      return {
-                        ...child,
-                        branch: data.branch,
-                        diffCount: data.diffCount,
-                        latestCommit: data.latestCommit,
-                      };
-                    }
-                    return child;
-                  })
-                };
-              }
-            })
-          );
+          const cleanDataPath = normalizePath(data.path);
+          setNodes((prev) => updateLeafNodes(prev, (leaf) => {
+            if (normalizePath(leaf.path) === cleanDataPath) {
+              return {
+                ...leaf,
+                branch: data.branch,
+                diffCount: data.diffCount,
+                latestCommit: data.latestCommit,
+              };
+            }
+            return leaf;
+          }));
         } else {
           const typeResolvers = resolvers[data.type];
           if (typeResolvers) {
-            // Filter out resolvers that return true (handled)
             resolvers[data.type] = typeResolvers.filter(resolve => !resolve(data as any)) as any;
           }
         }

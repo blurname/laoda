@@ -8,23 +8,36 @@ import { ToastContainer } from "./components/Toast";
 import { viewAtom, nodesAtom } from "./store/atoms";
 import { useSocket } from "./hooks/useSocket";
 import { stripStatusPrefix } from "./utils/status";
+import { updateLeafNodes, normalizePath, decodeNodeId } from "./utils/nodes";
 
 function App() {
   const currentView = useAtomValue(viewAtom);
   const setNodes = useSetAtom(nodesAtom);
   useSocket();
 
-  // Cleanup: strip any optimistic status prefixes from node names on mount
+  // Cleanup: strip any optimistic status prefixes and trailing slashes from node names/paths on mount
   useEffect(() => {
-    setNodes((prev) =>
-      prev.map((n) => {
-        if (n.type === "leaf") return { ...n, name: stripStatusPrefix(n.name) };
-        return {
-          ...n,
-          children: n.children.map(c => ({ ...c, name: stripStatusPrefix(c.name) }))
+    setNodes((prev) => prev.map(node => {
+      if (node.type === "leaf") {
+        return { 
+          ...node, 
+          path: normalizePath(node.path),
+          name: stripStatusPrefix(node.name) 
         };
-      })
-    );
+      } else {
+        // Migrate old group nodes that missing 'path' field
+        const path = node.path || decodeNodeId(node.id);
+        return {
+          ...node,
+          path: normalizePath(path),
+          children: node.children.map(leaf => ({
+            ...leaf,
+            path: normalizePath(leaf.path),
+            name: stripStatusPrefix(leaf.name)
+          }))
+        };
+      }
+    }));
   }, [setNodes]);
 
   return (

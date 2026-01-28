@@ -1,7 +1,8 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { LeafNode, selectedIDEAtom, nodesAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo, settingsAtom } from "../store/atoms";
 import { api } from "../utils/api";
+import { normalizePath, getNameFromPath, getNodeId, updateLeafNodes } from "../utils/nodes";
 
 interface FolderCardProps {
   folder: LeafNode;
@@ -34,46 +35,37 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
 
     try {
       const childrenPaths = groupChildren.map(c => c.path);
-      const firstChildPath = childrenPaths[0];
-      const currentParentParts = firstChildPath.split("/").filter(Boolean);
-      const currentParentName = currentParentParts[currentParentParts.length - 2];
-      const targetParent = "/" + currentParentParts.slice(0, -2).join("/");
+      const groupPath = normalizePath(folder.path);
+      
+      // 计算目标路径：组文件夹的父目录
+      const groupParts = groupPath.split("/").filter(Boolean);
+      const targetParent = "/" + groupParts.slice(0, -1).join("/");
 
-      // 检查是否是物理分组（文件夹名与组名一致）
-      const isPhysicalGroup = currentParentName === folder.name;
-
-      if (!isPhysicalGroup) {
-        // 场景 A：仅逻辑取消分组
-        setNodes(prev => {
-          const movingLeafs: LeafNode[] = [];
-          const filteredNodes = prev.filter(n => {
-            if (n.type === "group" && n.name === folder.name) {
-              movingLeafs.push(...n.children);
-              return false;
-            }
-            return true;
-          });
-          return [...filteredNodes, ...movingLeafs];
-        });
-        setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: "Ungroup success", type: "success" } : t));
-      } else {
-        // 场景 B：物理移出
-        const results = await api.moveBulk(childrenPaths, targetParent, settings.copyIncludeFiles, settings.operationMode);
-        const succeeded = results.filter(r => r.success);
-        
+      // 执行物理移出
+      const results = await api.moveBulk(childrenPaths, targetParent, settings.copyIncludeFiles, settings.operationMode);
+      const succeeded = results.filter(r => r.success);
+      
         if (succeeded.length === childrenPaths.length) {
+          // 1. 物理移除组文件夹（因为它现在应该是空的）
+          try {
+            await api.deleteFolder(folder.path);
+          } catch (e) {
+            console.warn("Failed to delete group folder, it might not be empty:", e);
+          }
+
+          // 2. 更新前端状态
           setNodes(prev => {
             const movingLeafs: LeafNode[] = [];
             const filteredNodes = prev.filter(n => {
-              if (n.type === "group" && n.name === folder.name) {
+              if (n.type === "group" && n.id === folder.id) {
                 movingLeafs.push(...n.children.map(c => {
-                  const res = succeeded.find(s => s.path === c.path);
-                  const newPath = res?.newPath || c.path;
+                  const res = succeeded.find(s => normalizePath(s.path) === normalizePath(c.path));
+                  const newPath = normalizePath(res?.newPath || c.path);
                   return {
                     ...c,
-                    id: encodeURIComponent(newPath).replace(/%/g, "_"),
+                    id: getNodeId(newPath),
                     path: newPath,
-                    name: newPath.split("/").pop() || c.name
+                    name: getNameFromPath(newPath)
                   };
                 }));
                 return false;
@@ -84,10 +76,9 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
           });
           setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: "Ungroup success", type: "success" } : t));
         } else {
-          setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: "Partial ungroup failed", type: "error" } : t));
-        }
+        setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: "Partial ungroup failed", type: "error" } : t));
       }
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== toastId)), 2000);
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     } catch (err) {
       console.error("Ungroup failed:", err);
     } finally {
@@ -118,19 +109,11 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     try {
       await api.openInIDE(ideConfig.value, folder.path);
       const now = Date.now();
-      setNodes(prev => prev.map(n => {
-        if (n.type === "leaf" && n.path === folder.path) return { ...n, lastUsedAt: now };
-        if (n.type === "group") {
-          const hasChild = n.children.some(c => c.path === folder.path);
-          if (hasChild) {
-            return {
-              ...n,
-              lastUsedAt: now,
-              children: n.children.map(c => c.path === folder.path ? { ...c, lastUsedAt: now } : c)
-            };
-          }
+      setNodes(prev => updateLeafNodes(prev, (leaf) => {
+        if (normalizePath(leaf.path) === normalizePath(folder.path)) {
+          return { ...leaf, lastUsedAt: now };
         }
-        return n;
+        return leaf;
       }));
     } catch (err) {
       console.error(`Failed to open IDE:`, err);
@@ -145,12 +128,13 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: "Duplicating...", type: "loading" }]);
 
     try {
-      const newPath = await api.duplicateFolder(folder.path, settings.copyIncludeFiles);
+      const newPathRaw = await api.duplicateFolder(folder.path, settings.copyIncludeFiles);
+      const newPath = normalizePath(newPathRaw);
       const gitInfo = await api.watchFolder(newPath);
-      const finalName = newPath.split("/").filter(Boolean).pop() || newPath;
+      const finalName = getNameFromPath(newPath);
       const newNode: LeafNode = {
         type: "leaf",
-        id: encodeURIComponent(newPath).replace(/%/g, "_"),
+        id: getNodeId(newPath),
         path: newPath,
         name: finalName,
         ...gitInfo,
@@ -163,7 +147,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Duplicate failed", type: "error" } : t));
     } finally {
       setIsDuplicating(false);
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== toastId)), 2000);
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     }
   };
 
@@ -188,7 +172,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: err.message || "Delete failed", type: "error" } : t));
     } finally {
       setIsDeleting(false);
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== toastId)), 2000);
+      setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
     }
   };
 
@@ -251,7 +235,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
           
           <div className="flex items-center gap-4 text-zinc-500">
             <div className="flex items-center gap-1.5 text-[11px] font-medium">
-              <span className="truncate max-w-[300px] opacity-70">{isGroup ? "Logical Group" : folder.path}</span>
+              <span className="truncate max-w-[300px] opacity-70">{isGroup ? "Physical Group" : folder.path}</span>
             </div>
             {!isGroup && folder.latestCommit && (
               <div className="flex items-center gap-1.5 text-[11px] truncate border-l border-zinc-300 pl-4">

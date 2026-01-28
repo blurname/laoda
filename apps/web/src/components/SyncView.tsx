@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { useSetAtom, useAtomValue } from "jotai";
-import { nodesAtom, managedFilesAtom, ManagedFile, LeafNode } from "../store/atoms";
+import { nodesAtom, managedFilesAtom, ManagedFile } from "../store/atoms";
 import { api } from "../utils/api";
+import { flattenNodes } from "../utils/nodes";
 
 const ManagedFileCard: React.FC<{ file: ManagedFile }> = ({ file }) => {
   const setManagedFiles = useSetAtom(managedFilesAtom);
@@ -9,14 +10,7 @@ const ManagedFileCard: React.FC<{ file: ManagedFile }> = ({ file }) => {
   
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
 
-  const allLeafNodes = useMemo(() => {
-    const leafs: LeafNode[] = [];
-    nodes.forEach(n => {
-      if (n.type === "leaf") leafs.push(n);
-      else leafs.push(...n.children);
-    });
-    return leafs;
-  }, [nodes]);
+  const allLeafNodes = useMemo(() => flattenNodes(nodes), [nodes]);
 
   // Auto-matching logic
   const getMatchedFolders = () => {

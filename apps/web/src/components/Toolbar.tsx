@@ -11,7 +11,13 @@ import {
   LeafNode,
 } from "../store/atoms";
 import { api } from "../utils/api";
-
+import {
+  normalizePath,
+  getNameFromPath,
+  getNodeId,
+  findLeafByPath,
+  updateLeafNodes,
+} from "../utils/nodes";
 import { StatusPrefix, formatStatusName } from "../utils/status";
 
 const SUPPORTED_IDES = ["Cursor", "VSCode", "Trae", "Qoder", "Antigravity"];
@@ -39,17 +45,18 @@ export const Toolbar = () => {
     ]);
 
     try {
-      const path = await api.pickFolder();
-      if (!path) {
+      const rawPath = await api.pickFolder();
+      if (!rawPath) {
         setToasts((prev: ToastInfo[]) => prev.filter((t) => t.id !== toastId));
         pickingLock.current = false;
         setIsPicking(false);
         return;
       }
 
-      // 乐观更新：立即添加文件夹
-      const name = path.split("/").filter(Boolean).pop() || path;
-      const id = encodeURIComponent(path).replace(/%/g, "_");
+      const path = normalizePath(rawPath);
+      const name = getNameFromPath(path);
+      const id = getNodeId(path);
+
       const newLeaf: LeafNode = {
         type: "leaf",
         id,
@@ -63,40 +70,41 @@ export const Toolbar = () => {
       };
 
       setNodes((prev) => {
-        const exists = prev.some(n => {
-          if (n.type === "leaf") return n.path === path;
-          return n.children.some(c => c.path === path);
-        });
-        if (exists) return prev;
+        if (findLeafByPath(prev, path)) return prev;
         return [...prev, newLeaf];
       });
 
-      // 获取 Git 信息
       try {
         const gitInfo = await api.watchFolder(path);
-        const finalName = path.split("/").filter(Boolean).pop() || path;
+        const finalName = getNameFromPath(path);
         setNodes((prev) =>
-          prev.map((n) => {
-            if (n.type === "leaf" && n.path === path) return { ...n, ...gitInfo, name: finalName };
-            if (n.type === "group") {
-              return {
-                ...n,
-                children: n.children.map(c => c.path === path ? { ...c, ...gitInfo, name: finalName } : c)
-              };
+          updateLeafNodes(prev, (leaf) => {
+            if (normalizePath(leaf.path) === path) {
+              return { ...leaf, ...gitInfo, name: finalName };
             }
-            return n;
+            return leaf;
           }),
         );
       } catch (watchErr) {
         console.error("Failed to watch folder:", watchErr);
-        // 回退：移除已添加的文件夹
-        setNodes((prev) => prev.filter((n) => {
-          if (n.type === "leaf") return n.path !== path;
-          return true;
-        }).map(n => {
-          if (n.type === "group") return { ...n, children: n.children.filter(c => c.path !== path) };
-          return n;
-        }).filter(n => n.type === "leaf" || n.children.length > 0));
+        setNodes((prev) =>
+          prev
+            .filter((n) => {
+              if (n.type === "leaf") return normalizePath(n.path) !== path;
+              return true;
+            })
+            .map((n) => {
+              if (n.type === "group")
+                return {
+                  ...n,
+                  children: n.children.filter(
+                    (c) => normalizePath(c.path) !== path,
+                  ),
+                };
+              return n;
+            })
+            .filter((n) => n.type === "leaf" || n.children.length > 0),
+        );
         throw watchErr;
       }
 
@@ -107,17 +115,8 @@ export const Toolbar = () => {
             : t,
         ),
       );
-      setTimeout(
-        () =>
-          setToasts((prev: ToastInfo[]) =>
-            prev.filter((t) => t.id !== toastId),
-          ),
-        2000,
-      );
     } catch (err) {
       console.error("Import failed:", err);
-      // 如果 watchFolder 失败，上面的 catch 已经回滚了
-      // 如果是其他错误（如 pickFolder 失败），这里不需要回滚
       setToasts((prev: ToastInfo[]) =>
         prev.map((t) =>
           t.id === toastId
@@ -125,14 +124,14 @@ export const Toolbar = () => {
             : t,
         ),
       );
+    } finally {
       setTimeout(
         () =>
           setToasts((prev: ToastInfo[]) =>
             prev.filter((t) => t.id !== toastId),
           ),
-        3000,
+        2000,
       );
-    } finally {
       pickingLock.current = false;
       setIsPicking(false);
     }
@@ -141,9 +140,7 @@ export const Toolbar = () => {
   return (
     <header className="bg-zinc-100 border-b border-zinc-300 px-6 py-4 flex items-center justify-between relative z-10 shadow-sm shrink-0">
       <div className="flex items-center gap-10">
-        <h1 className="text-xl font-bold text-zinc-900 italic">
-          laoda_
-        </h1>
+        <h1 className="text-xl font-bold text-zinc-900 italic">laoda_</h1>
 
         <div className="flex items-center gap-0 border border-zinc-200 bg-zinc-200/50">
           <div className="flex items-center gap-2 px-3 py-1 text-[10px] font-bold text-zinc-500 border-r border-zinc-200">
@@ -196,35 +193,22 @@ export const Toolbar = () => {
         </div>
       </div>
 
-      {/* Middle View Switcher */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 border border-zinc-300 p-0.5 bg-zinc-200/30">
         <button
           onClick={() => setCurrentView("list")}
-          className={`px-3 py-1 text-[9px] font-black transition-all ${
-            currentView === "list"
-              ? "bg-zinc-700 text-zinc-100 shadow-sm"
-              : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
-          }`}
+          className={`px-3 py-1 text-[9px] font-black transition-all ${currentView === "list" ? "bg-zinc-700 text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"}`}
         >
           Terminal
         </button>
         <button
           onClick={() => setCurrentView("sync")}
-          className={`px-3 py-1 text-[9px] font-black transition-all ${
-            currentView === "sync"
-              ? "bg-zinc-700 text-zinc-100 shadow-sm"
-              : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
-          }`}
+          className={`px-3 py-1 text-[9px] font-black transition-all ${currentView === "sync" ? "bg-zinc-700 text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"}`}
         >
           Sync
         </button>
         <button
           onClick={() => setCurrentView("data")}
-          className={`px-3 py-1 text-[9px] font-black transition-all ${
-            currentView === "data"
-              ? "bg-zinc-700 text-zinc-100 shadow-sm"
-              : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"
-          }`}
+          className={`px-3 py-1 text-[9px] font-black transition-all ${currentView === "data" ? "bg-zinc-700 text-zinc-100 shadow-sm" : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50"}`}
         >
           Data
         </button>
@@ -234,11 +218,7 @@ export const Toolbar = () => {
         <div className="relative">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`px-3 py-1.5 text-[10px] font-bold transition-all border ${
-              showSettings
-                ? "bg-zinc-700 text-zinc-100 border-zinc-700"
-                : "bg-zinc-200 text-zinc-600 border-zinc-300 hover:bg-zinc-300"
-            }`}
+            className={`px-3 py-1.5 text-[10px] font-bold transition-all border ${showSettings ? "bg-zinc-700 text-zinc-100 border-zinc-700" : "bg-zinc-200 text-zinc-600 border-zinc-300 hover:bg-zinc-300"}`}
           >
             Settings
           </button>
@@ -285,11 +265,7 @@ export const Toolbar = () => {
                           operationMode: "move",
                         }))
                       }
-                      className={`flex-1 py-1 text-[9px] font-black transition-all ${
-                        settings.operationMode === "move"
-                          ? "bg-zinc-700 text-zinc-100"
-                          : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
-                      }`}
+                      className={`flex-1 py-1 text-[9px] font-black transition-all ${settings.operationMode === "move" ? "bg-zinc-700 text-zinc-100" : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"}`}
                     >
                       Move
                     </button>
@@ -300,11 +276,7 @@ export const Toolbar = () => {
                           operationMode: "copy",
                         }))
                       }
-                      className={`flex-1 py-1 text-[9px] font-black transition-all ${
-                        settings.operationMode === "copy"
-                          ? "bg-zinc-700 text-zinc-100"
-                          : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
-                      }`}
+                      className={`flex-1 py-1 text-[9px] font-black transition-all ${settings.operationMode === "copy" ? "bg-zinc-700 text-zinc-100" : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"}`}
                     >
                       Copy
                     </button>
@@ -324,12 +296,7 @@ export const Toolbar = () => {
               const id = Math.random().toString(36).substring(7);
               setManagedFiles((prev) => [
                 ...prev,
-                {
-                  id,
-                  filename: "",
-                  content: "",
-                  targetPattern: "",
-                },
+                { id, filename: "", content: "", targetPattern: "" },
               ]);
             }}
             className="bg-zinc-700 hover:bg-zinc-700/80 text-zinc-100 px-5 py-1.5 text-[10px] font-bold transition-all border border-zinc-700"

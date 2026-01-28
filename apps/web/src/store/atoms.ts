@@ -16,6 +16,7 @@ export interface LeafNode {
 export interface GroupNode {
   type: "group";
   id: string;
+  path: string;
   name: string;
   children: LeafNode[];
   addedAt: number;
