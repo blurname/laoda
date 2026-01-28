@@ -6,7 +6,12 @@ const API_BASE = isProd ? window.location.origin : "http://localhost:26124";
 export const api = {
   async pickFolder(): Promise<string | null> {
     return new Promise(async (resolve, reject) => {
+      const timeout = setTimeout(() => {
+        resolve(null); // 超时也按取消处理
+      }, 60000);
+
       registerResolver("FOLDER_PICKED", (data) => {
+        clearTimeout(timeout);
         resolve(data.path);
         return true;
       });
@@ -14,9 +19,11 @@ export const api = {
       try {
         const res = await fetch(`${API_BASE}/api/pick-folder`, { method: "POST" });
         if (!res.ok) {
+          clearTimeout(timeout);
           reject(new Error("Failed to pick folder"));
         }
       } catch (err) {
+        clearTimeout(timeout);
         reject(err);
       }
     });
@@ -98,9 +105,14 @@ export const api = {
     });
   },
 
-  async moveBulk(paths: string[], targetParent: string, includeFiles: string[] = []): Promise<any[]> {
+  async moveBulk(paths: string[], targetParent: string, includeFiles: string[] = [], mode: "move" | "copy" = "move"): Promise<any[]> {
     return new Promise(async (resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Move operation timeout"));
+      }, 60000);
+
       registerResolver("MOVE_BULK_COMPLETE", (data) => {
+        clearTimeout(timeout);
         // Since MOVE_BULK_COMPLETE usually happens once for the entire request,
         // we can resolve it directly.
         resolve(data.results);
@@ -111,12 +123,14 @@ export const api = {
         const res = await fetch(`${API_BASE}/api/move-bulk`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paths, targetParent, includeFiles }),
+          body: JSON.stringify({ paths, targetParent, includeFiles, mode }),
         });
         if (!res.ok) {
+          clearTimeout(timeout);
           reject(new Error("Failed to move folders"));
         }
       } catch (err) {
+        clearTimeout(timeout);
         reject(err);
       }
     });

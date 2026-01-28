@@ -18,6 +18,7 @@ import {
   readlinkSync,
   symlinkSync,
   rmSync,
+  renameSync,
   writeFileSync,
 } from "fs";
 import { execSync, spawn } from "child_process";
@@ -41,24 +42,25 @@ class MacOSAdapter implements OSAdapter {
 
     this.isPickerOpen = true;
     try {
-      const proc = spawn("osascript", [
-        "-e",
-        'POSIX path of (choose folder with prompt "Select a folder")',
-      ]);
-
-      let output = "";
-      if (proc.stdout) {
-        for await (const chunk of proc.stdout) {
-          output += chunk;
-        }
-      }
-      return output.trim() || null;
+      // 使用 execSync 同步执行，因为这是一个独立的背景任务进程，且 osascript 执行很快
+      const output = execSync(
+        'osascript -e \'POSIX path of (choose folder with prompt "Select a folder")\'',
+        { encoding: "utf8" }
+      ).trim();
+      
+      console.log(`Picker returned path: ${output || "none"}`);
+      return output || null;
+    } catch (e: any) {
+      // osascript 被取消时会抛出错误 (exit code 1)
+      console.log(`Picker closed or failed: ${e.message || "User canceled"}`);
+      return null;
     } finally {
       this.isPickerOpen = false;
     }
   }
 
   async openInIDE(appName: string, path: string): Promise<void> {
+    console.log(`Executing: open -a "${appName}" "${path}"`);
     spawn("open", ["-a", appName, path], {
       stdio: "inherit",
     });
@@ -172,6 +174,7 @@ app.get("/api/ls", (c) => {
 
 // New API to call system folder picker
 app.post("/api/pick-folder", async (c) => {
+  console.log("Request: /api/pick-folder");
   try {
     // Run picker in background to avoid HTTP timeout
     (async () => {
@@ -184,19 +187,19 @@ app.post("/api/pick-folder", async (c) => {
 
     return c.json({ success: true, message: "Picker started" });
   } catch (e) {
-    console.error("Failed to open system picker:", e);
-    return c.json({ error: "Failed to open system picker" }, 500);
+    console.error("Failed to trigger system picker:", e);
+    return c.json({ error: "Failed to trigger system picker" }, 500);
   }
 });
 
 // API to open folder in IDEs
 app.post("/api/open/vscode_family", async (c) => {
   const { path, appName } = await c.req.json();
+  console.log(`Request: /api/open/vscode_family (IDE: ${appName}, Path: ${path})`);
 
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
   if (!appName) return c.json({ error: "Missing appName" }, 400);
 
-  console.log(`Opening ${appName} for path:`, path);
   try {
     await os.openInIDE(appName, path);
     return c.json({ success: true });
@@ -208,12 +211,13 @@ app.post("/api/open/vscode_family", async (c) => {
 
 app.post("/api/delete", async (c) => {
   const { path } = await c.req.json();
+  console.log(`Request: /api/delete (Path: ${path})`);
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
 
   // Run in background
   (async () => {
     try {
-      console.log(`Deleting folder: ${path}`);
+      console.log(`[Background] Deleting folder: ${path}`);
       rmSync(path, { recursive: true, force: true });
 
       // Cleanup internal state
@@ -226,9 +230,10 @@ app.post("/api/delete", async (c) => {
         watchers.delete(id);
       }
 
+      console.log(`[Success] Deleted: ${path}`);
       notifyClients({ type: "DELETION_COMPLETE", path, success: true });
     } catch (e: any) {
-      console.error("Deletion failed:", e);
+      console.error(`[Error] Deletion failed for ${path}:`, e);
       notifyClients({
         type: "DELETION_COMPLETE",
         path,
@@ -243,21 +248,25 @@ app.post("/api/delete", async (c) => {
 
 app.post("/api/write-file", async (c) => {
   const { path, filename, content } = await c.req.json();
+  console.log(`Request: /api/write-file (Path: ${path}, Filename: ${filename})`);
   if (!path || !filename) return c.json({ error: "Missing parameters" }, 400);
 
   try {
     const fullPath = join(path, filename);
-    console.log(`Writing managed file to: ${fullPath}`);
     writeFileSync(fullPath, content, "utf-8");
+    console.log(`[Success] Managed file written: ${fullPath}`);
     return c.json({ success: true });
   } catch (e) {
-    console.error("Failed to write file:", e);
+    console.error(`[Error] Failed to write file ${filename} in ${path}:`, e);
     return c.json({ error: "Write failed" }, 500);
   }
 });
 
 function copyFolderRobustly(src: string, dest: string, includeFiles: string[] = []) {
-  if (!existsSync(src)) return;
+  if (!existsSync(src)) {
+    console.error(`[copyFolderRobustly] Source does not exist: ${src}`);
+    return;
+  }
 
   // 1. Create target dir
   if (!existsSync(dest)) {
@@ -278,6 +287,7 @@ function copyFolderRobustly(src: string, dest: string, includeFiles: string[] = 
 
   // 3. Copy .git folder (explicitly requested)
   if (existsSync(join(src, ".git"))) {
+    console.log(`[copyFolderRobustly] Copying .git folder to ${dest}`);
     cpSync(join(src, ".git"), join(dest, ".git"), { recursive: true });
   }
 
@@ -291,18 +301,25 @@ function copyFolderRobustly(src: string, dest: string, includeFiles: string[] = 
       .split("\0")
       .filter((f) => f.trim().length > 0);
     gitFiles.forEach(f => filesToCopySet.add(f));
+    console.log(`[copyFolderRobustly] Found ${gitFiles.length} files via git ls-files`);
   } catch (e) {
-    console.warn(`Git ls-files failed in ${src}, falling back to includeFiles only:`, e);
+    console.warn(`[copyFolderRobustly] Git ls-files failed in ${src}, falling back to includeFiles only:`, e);
   }
 
   // Add explicitly included files even if ignored by git
+  let explicitCount = 0;
   for (const file of includeFiles) {
     if (existsSync(join(src, file))) {
       filesToCopySet.add(file);
+      explicitCount++;
     }
+  }
+  if (explicitCount > 0) {
+    console.log(`[copyFolderRobustly] Added ${explicitCount} explicitly included files`);
   }
 
   const filesToCopy = Array.from(filesToCopySet);
+  console.log(`[copyFolderRobustly] Copying total ${filesToCopy.length} files...`);
 
   for (const file of filesToCopy) {
     const srcFile = join(src, file);
@@ -323,7 +340,7 @@ function copyFolderRobustly(src: string, dest: string, includeFiles: string[] = 
           copyFileSync(srcFile, destFile);
         }
       } catch (err) {
-        console.error(`Failed to copy file/link ${srcFile}:`, err);
+        console.error(`[copyFolderRobustly] Failed to copy file/link ${srcFile}:`, err);
       }
     }
   }
@@ -335,11 +352,16 @@ function copyFolderRobustly(src: string, dest: string, includeFiles: string[] = 
   if (localEmail) {
     execSync(`git config --local user.email "${localEmail}"`, { cwd: dest });
   }
+  console.log(`[copyFolderRobustly] Successfully copied to ${dest}`);
 }
 
 app.post("/api/move-bulk", async (c) => {
-  const { paths, targetParent, includeFiles = [] } = await c.req.json();
-  if (!Array.isArray(paths) || !targetParent || !existsSync(targetParent)) {
+  const { paths, targetParent, includeFiles = [], mode = "move" } = await c.req.json();
+  console.log(`Request: /api/move-bulk (Mode: ${mode}, Items: ${paths.length}, Target: ${targetParent})`);
+  
+  // validation: targetParent is required, but it doesn't have to exist yet (e.g. for grouping)
+  if (!Array.isArray(paths) || !targetParent) {
+    console.error("[Move] Invalid parameters: paths must be array and targetParent is required");
     return c.json({ error: "Invalid parameters" }, 400);
   }
 
@@ -347,22 +369,41 @@ app.post("/api/move-bulk", async (c) => {
   (async () => {
     const results = [];
     for (const src of paths) {
-      if (!existsSync(src)) continue;
+      if (!existsSync(src)) {
+        console.warn(`[Move] Source does not exist: ${src}`);
+        continue;
+      }
 
       const folderName = basename(src);
       const dest = join(targetParent, folderName);
 
       if (existsSync(dest)) {
+        console.warn(`[Move] Target already exists: ${dest}`);
         results.push({ path: src, success: false, error: "Target exists" });
         continue;
       }
 
       try {
-        console.log(`Moving ${src} to ${dest} (including: ${includeFiles.join(", ")})`);
-        copyFolderRobustly(src, dest, includeFiles);
-
-        // Cleanup original
-        rmSync(src, { recursive: true, force: true });
+        if (mode === "move") {
+          console.log(`[Move] Instant move (rename) ${src} -> ${dest}`);
+          try {
+            // Try simple rename first (instant)
+            if (!existsSync(join(dest, ".."))) {
+              mkdirSync(join(dest, ".."), { recursive: true });
+            }
+            renameSync(src, dest);
+          } catch (e) {
+            console.warn(`[Move] Rename failed, falling back to copy+delete:`, e);
+            // Fallback to copy everything (it's a move, so we want all files)
+            cpSync(src, dest, { recursive: true });
+            rmSync(src, { recursive: true, force: true });
+          }
+        } else {
+          console.log(`[Move] Copy move (selective) ${src} -> ${dest}`);
+          copyFolderRobustly(src, dest, includeFiles);
+          // Cleanup original
+          rmSync(src, { recursive: true, force: true });
+        }
 
         // Cleanup internal state
         const id = Buffer.from(src).toString("base64");
@@ -374,13 +415,15 @@ app.post("/api/move-bulk", async (c) => {
           watchers.delete(id);
         }
 
+        console.log(`[Move] Successfully moved: ${src}`);
         results.push({ path: src, success: true, newPath: dest });
       } catch (e: any) {
-        console.error(`Move failed for ${src}:`, e);
+        console.error(`[Move] Failed for ${src}:`, e);
         results.push({ path: src, success: false, error: e.message });
       }
     }
 
+    console.log(`[Move] Finished bulk move. Results: ${results.length}`);
     notifyClients({ type: "MOVE_BULK_COMPLETE", results });
   })();
 
@@ -389,6 +432,7 @@ app.post("/api/move-bulk", async (c) => {
 
 app.post("/api/duplicate", async (c) => {
   const { path, includeFiles = [] } = await c.req.json();
+  console.log(`Request: /api/duplicate (Path: ${path})`);
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
 
   // Run in background
@@ -410,9 +454,10 @@ app.post("/api/duplicate", async (c) => {
         counter++;
       }
 
-      console.log(`Duplicating ${path} to ${newPath} (including: ${includeFiles.join(", ")})`);
+      console.log(`[Duplicate] Starting: ${path} -> ${newPath}`);
       copyFolderRobustly(path, newPath, includeFiles);
 
+      console.log(`[Duplicate] Successfully duplicated: ${newPath}`);
       notifyClients({
         type: "DUPLICATION_COMPLETE",
         path,
@@ -420,7 +465,7 @@ app.post("/api/duplicate", async (c) => {
         success: true,
       });
     } catch (e: any) {
-      console.error("Duplication failed:", e);
+      console.error(`[Duplicate] Failed for ${path}:`, e);
       notifyClients({
         type: "DUPLICATION_COMPLETE",
         path,
@@ -435,6 +480,7 @@ app.post("/api/duplicate", async (c) => {
 
 app.post("/api/watch", async (c) => {
   const { path } = await c.req.json();
+  console.log(`Request: /api/watch (Path: ${path})`);
   if (!path || !existsSync(path)) return c.json({ error: "Invalid path" }, 400);
 
   startWatching(path);
@@ -445,6 +491,7 @@ app.post("/api/watch", async (c) => {
 // New API for bulk watching - returns Git info for paths that exist
 app.post("/api/watch-bulk", async (c) => {
   const { paths } = await c.req.json();
+  console.log(`Request: /api/watch-bulk (Items: ${paths.length})`);
   if (!Array.isArray(paths))
     return c.json({ error: "Paths must be an array" }, 400);
 
@@ -465,6 +512,7 @@ app.post("/api/watch-bulk", async (c) => {
 function startWatching(path: string, shouldBroadcast = true) {
   const id = Buffer.from(path).toString("base64");
   if (!watchedPaths.has(path)) {
+    console.log(`[Watcher] Starting for: ${path}`);
     watchedPaths.add(path);
 
     const watcher = watch([path], {
@@ -491,8 +539,14 @@ function startWatching(path: string, shouldBroadcast = true) {
       });
     };
 
-    watcher.on("all", update);
-    gitWatcher.on("all", update);
+    watcher.on("all", (event) => {
+      console.log(`[Watcher] File event: ${event} in ${path}`);
+      update();
+    });
+    gitWatcher.on("all", (event) => {
+      console.log(`[Watcher] Git event: ${event} in ${path}`);
+      update();
+    });
 
     watchers.set(id, { watcher, gitWatcher });
   }
@@ -501,6 +555,7 @@ function startWatching(path: string, shouldBroadcast = true) {
 // API to get Git info for paths - frontend sends paths, backend returns Git info
 app.post("/api/git-info", async (c) => {
   const { paths } = await c.req.json();
+  console.log(`Request: /api/git-info (Items: ${paths.length})`);
   if (!Array.isArray(paths))
     return c.json({ error: "Paths must be an array" }, 400);
 

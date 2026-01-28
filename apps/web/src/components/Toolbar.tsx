@@ -50,6 +50,8 @@ export const Toolbar = () => {
         branch: "loading...",
         diffCount: 0,
         latestCommit: "",
+        addedAt: Date.now(),
+        lastUsedAt: 0,
       };
 
       setFolders((prev) => {
@@ -184,7 +186,7 @@ export const Toolbar = () => {
           {showSettings && (
             <div className="absolute right-0 mt-2 w-72 bg-zinc-50 border border-zinc-300 shadow-xl p-4 z-[100]">
               <h4 className="text-[10px] font-black text-zinc-400 tracking-widest mb-3 border-b border-zinc-200 pb-1">Copy options</h4>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-bold text-zinc-600">Include files (one per line)</label>
                   <textarea
@@ -197,6 +199,33 @@ export const Toolbar = () => {
                     className="w-full h-24 bg-zinc-100 border border-zinc-200 p-2 text-[10px] font-mono text-zinc-700 focus:outline-none focus:border-zinc-400 resize-none leading-relaxed"
                   />
                   <p className="text-[9px] text-zinc-400 italic">Files listed here will be copied even if ignored by git.</p>
+                </div>
+
+                <div className="pt-2 border-t border-zinc-200">
+                  <label className="text-[10px] font-bold text-zinc-600 block mb-2">Operation mode</label>
+                  <div className="flex border border-zinc-300">
+                    <button
+                      onClick={() => setSettings(prev => ({ ...prev, operationMode: "move" }))}
+                      className={`flex-1 py-1 text-[9px] font-black transition-all ${
+                        settings.operationMode === "move" 
+                          ? "bg-zinc-700 text-zinc-100" 
+                          : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
+                      }`}
+                    >
+                      Move
+                    </button>
+                    <button
+                      onClick={() => setSettings(prev => ({ ...prev, operationMode: "copy" }))}
+                      className={`flex-1 py-1 text-[9px] font-black transition-all ${
+                        settings.operationMode === "copy" 
+                          ? "bg-zinc-700 text-zinc-100" 
+                          : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200"
+                      }`}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-zinc-400 italic mt-1.5">Move: renameSync (instant). Copy: selective git-based copy.</p>
                 </div>
               </div>
             </div>

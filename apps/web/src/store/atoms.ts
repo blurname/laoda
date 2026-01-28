@@ -8,6 +8,8 @@ export interface FolderInfo {
   branch: string;
   diffCount: number;
   latestCommit: string;
+  addedAt: number;
+  lastUsedAt: number;
 }
 
 export interface ManagedFile {
@@ -26,14 +28,17 @@ export interface IDEConfig {
 
 export interface Settings {
   copyIncludeFiles: string[];
+  operationMode: "move" | "copy";
 }
+
+export type SortType = "added" | "name" | "lastUsed";
 
 export interface LaodaStorage {
   "imported-folders": FolderInfo[];
   "selected-ide-config": IDEConfig;
   "current-view": ViewType;
   "managed-files": ManagedFile[];
-  "is-sorted-by-name": boolean;
+  "sort-by": SortType;
   "settings": Settings;
 }
 
@@ -45,7 +50,8 @@ export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide-config
 });
 
 export const settingsAtom = atomWithStorage<LaodaStorage["settings"]>("settings", {
-  copyIncludeFiles: [".env.local"]
+  copyIncludeFiles: [".env.local"],
+  operationMode: "move"
 });
 
 export const viewAtom = atomWithStorage<LaodaStorage["current-view"]>(
@@ -63,7 +69,7 @@ export const viewAtom = atomWithStorage<LaodaStorage["current-view"]>(
 
 export const managedFilesAtom = atomWithStorage<LaodaStorage["managed-files"]>("managed-files", []);
 
-export const isSortedByNameAtom = atomWithStorage<LaodaStorage["is-sorted-by-name"]>("is-sorted-by-name", false);
+export const sortByAtom = atomWithStorage<LaodaStorage["sort-by"]>("sort-by", "added");
 export const isMultiSelectModeAtom = atom(false);
 export const selectedPathsAtom = atom<string[]>([]);
 

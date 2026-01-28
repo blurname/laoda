@@ -7,9 +7,10 @@ interface FolderCardProps {
   folder: FolderInfo;
   isBackendConnected: boolean;
   isGroup?: boolean;
+  groupChildren?: FolderInfo[];
 }
 
-export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnected, isGroup }) => {
+export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnected, isGroup, groupChildren }) => {
   const ideConfig = useAtomValue(selectedIDEAtom);
   const settings = useAtomValue(settingsAtom);
   const setFolders = useSetAtom(foldersAtom);
@@ -18,20 +19,93 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
   const setToasts = useSetAtom(toastsAtom);
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUngrouping, setIsUngrouping] = useState(false);
   const duplicateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const deleteToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 清理定时器
-  useEffect(() => {
-    return () => {
-      if (duplicateToastTimeoutRef.current) {
-        clearTimeout(duplicateToastTimeoutRef.current);
+  // ... (useEffect remains same)
+
+  const handleUngroup = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isUngrouping || !groupChildren || groupChildren.length === 0) return;
+
+    const confirm = window.confirm(`Ungroup "${folder.name}"? All items will be moved to the parent directory.`);
+    if (!confirm) return;
+
+    setIsUngrouping(true);
+    const toastId = Math.random().toString(36).substring(7);
+    setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: `Ungrouping ${folder.name}...`, type: "loading" }]);
+
+    try {
+      const childrenPaths = groupChildren.map(c => c.path);
+      const parts = folder.path.split("/").filter(Boolean);
+      const targetParent = "/" + parts.slice(0, -1).join("/");
+
+      // 乐观更新：移除组标题，子项由于路径更新会自动散开
+      const originalFoldersMap = new Map<string, FolderInfo>();
+      groupChildren.forEach(c => originalFoldersMap.set(c.path, { ...c }));
+
+      setFolders(prev => prev.map(f => {
+        if (childrenPaths.includes(f.path)) {
+          // 关键修复：从路径提取文件名
+          const fileName = f.path.split("/").filter(Boolean).pop() || f.path;
+          const newPath = `${targetParent.endsWith("/") ? targetParent : targetParent + "/"}${fileName}`;
+          const name = newPath.split("/").filter(Boolean).pop() || newPath;
+          return {
+            ...f,
+            id: encodeURIComponent(newPath).replace(/%/g, "_"),
+            path: newPath,
+            name: `Ungrouping: ${name}`
+          };
+        }
+        return f;
+      }));
+
+      const results = await api.moveBulk(childrenPaths, targetParent, settings.copyIncludeFiles, settings.operationMode);
+      
+      const succeeded = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
+
+      if (succeeded.length > 0) {
+        setFolders(prev => prev.map(f => {
+          const result = succeeded.find(r => {
+            const original = originalFoldersMap.get(r.path);
+            return original && original.id === f.id;
+          });
+          if (result) {
+            const newPath = result.newPath;
+            const name = newPath.split("/").pop() || newPath;
+            return { ...f, id: encodeURIComponent(newPath).replace(/%/g, "_"), path: newPath, name };
+          }
+          return f;
+        }));
       }
-      if (deleteToastTimeoutRef.current) {
-        clearTimeout(deleteToastTimeoutRef.current);
+
+      if (failed.length > 0) {
+        setFolders(prev => prev.map(f => {
+          for (const fr of failed) {
+            const original = originalFoldersMap.get(fr.path);
+            if (original && original.id === f.id) return original;
+          }
+          return f;
+        }));
+        setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: "Partial ungroup failed", type: "error" } : t));
+      } else {
+        // 后端尝试删除空文件夹
+        try {
+          await api.deleteFolder(folder.path);
+        } catch (e) {
+          console.warn("Failed to delete empty group folder:", e);
+        }
+        setToasts(prev => prev.map(t => t.id === toastId ? { ...t, message: "Ungroup success", type: "success" } : t));
       }
-    };
-  }, []);
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== toastId)), 2000);
+    } catch (err) {
+      console.error("Ungroup failed:", err);
+    } finally {
+      setIsUngrouping(false);
+    }
+  };
 
   const isSelected = selectedPaths.includes(folder.path);
 
@@ -48,12 +122,31 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       toggleSelection();
       return;
     }
+
+    if (isGroup && groupChildren) {
+      const confirm = window.confirm(`Open all ${groupChildren.length} projects in ${ideConfig.value}?`);
+      if (!confirm) return;
+      
+      for (const child of groupChildren) {
+        try {
+          await api.openInIDE(ideConfig.value, child.path);
+        } catch (err) {
+          console.error(`Failed to open ${child.path}:`, err);
+        }
+      }
+      return;
+    }
+
     if (!ideConfig.value) {
       alert("Please select a target IDE first");
       return;
     }
     try {
       await api.openInIDE(ideConfig.value, folder.path);
+      // 更新最近使用时间
+      setFolders(prev => prev.map(f => 
+        f.path === folder.path ? { ...f, lastUsedAt: Date.now() } : f
+      ));
     } catch (err) {
       console.error(`Failed to open ${ideConfig.value}:`, err);
     }
@@ -78,7 +171,9 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
     // 乐观更新：使用临时 ID，并标记为正在预测路径
     const parts = folder.path.split("/").filter(Boolean);
     const parentDir = "/" + parts.slice(0, -1).join("/");
-    const baseName = folder.name.replace(/^Copying: /, "").replace(/-\d+$/, "");
+    // 关键修复：从路径提取 baseName 并确保无空格
+    const rawName = parts.pop() || folder.name;
+    const baseName = rawName.replace(/-\d+$/, "").trim().replace(/\s+/g, "_");
     
     setFolders((prev) => {
       // 仍然在前端做一个初步预测以提供即时反馈
@@ -101,6 +196,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
         branch: "predicting...",
         diffCount: 0,
         latestCommit: "",
+        addedAt: Date.now(),
+        lastUsedAt: 0,
       };
       return [...prev, newFolder];
     });
@@ -282,6 +379,20 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
                   >
                     {isDeleting ? "Del..." : "Del"}
                   </button>
+
+                  {isGroup && (
+                    <button
+                      onClick={handleUngroup}
+                      disabled={isUngrouping}
+                      className={`px-2 py-0.5 border text-[9px] font-black tracking-widest transition-all ${
+                        isUngrouping
+                          ? "bg-zinc-100 text-zinc-400 border-zinc-200"
+                          : "bg-zinc-700 text-zinc-100 border-zinc-700 hover:bg-zinc-800"
+                      }`}
+                    >
+                      {isUngrouping ? "Ungrouping..." : "Ungroup"}
+                    </button>
+                  )}
                 </>
               )}
             </div>
