@@ -1,4 +1,5 @@
 import { registerResolver } from "../hooks/useSocket";
+import type { MoveResult } from "@laoda/shared";
 
 const isProd = import.meta.env.PROD;
 const API_BASE = isProd ? window.location.origin : "http://localhost:26124";
@@ -105,7 +106,7 @@ export const api = {
     });
   },
 
-  async moveBulk(paths: string[], targetParent: string, includeFiles: string[] = [], mode: "move" | "copy" = "move"): Promise<any[]> {
+  async moveBulk(paths: string[], targetParent: string, includeFiles: string[] = [], mode: "move" | "copy" = "move"): Promise<MoveResult[]> {
     return new Promise(async (resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("Move operation timeout"));
@@ -183,3 +184,4 @@ export const api = {
     return `${API_BASE.replace("http", "ws")}/ws`;
   }
 };
+

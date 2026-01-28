@@ -8,6 +8,7 @@
         "preview": "rsbuild preview"
     },
     "dependencies": {
+        "@laoda/shared": "workspace:*",
         "jotai": "^2.11.3",
         "lucide-react": "^0.474.0",
         "react": "^19.0.0",

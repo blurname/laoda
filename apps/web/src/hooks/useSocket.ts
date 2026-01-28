@@ -2,18 +2,20 @@ import { useEffect, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { foldersAtom, isConnectedAtom } from "../store/atoms";
 import { api } from "../utils/api";
+import type { ServerMessage, ServerMessageType, ServerMessagePayload } from "@laoda/shared";
 
 // Simple global event registry for async operations
-type Resolver = (data: any) => boolean; // return true if handled and should be removed
-const resolvers: Record<string, Resolver[]> = {
+type Resolver<T extends ServerMessageType = any> = (data: ServerMessagePayload<T>) => boolean; 
+const resolvers: Partial<Record<ServerMessageType, Resolver[]>> = {
   FOLDER_PICKED: [],
   DUPLICATION_COMPLETE: [],
   DELETION_COMPLETE: [],
   MOVE_BULK_COMPLETE: [],
 };
 
-export const registerResolver = (type: keyof typeof resolvers, resolve: Resolver) => {
-  resolvers[type].push(resolve);
+export const registerResolver = <T extends ServerMessageType>(type: T, resolve: Resolver<T>) => {
+  if (!resolvers[type]) resolvers[type] = [];
+  resolvers[type]!.push(resolve as any);
 };
 
 export const useSocket = () => {
@@ -58,7 +60,7 @@ export const useSocket = () => {
       };
 
       socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+        const data: ServerMessage = JSON.parse(event.data);
         if (data.type === "GIT_INFO_UPDATE") {
           // Update Git info for a specific path
           setFolders((prev) =>
@@ -74,9 +76,12 @@ export const useSocket = () => {
               return folder;
             })
           );
-        } else if (resolvers[data.type]) {
-          // Filter out resolvers that return true (handled)
-          resolvers[data.type] = resolvers[data.type].filter(resolve => !resolve(data));
+        } else {
+          const typeResolvers = resolvers[data.type];
+          if (typeResolvers) {
+            // Filter out resolvers that return true (handled)
+            resolvers[data.type] = typeResolvers.filter(resolve => !resolve(data as any)) as any;
+          }
         }
       };
 
