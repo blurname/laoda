@@ -4,7 +4,7 @@ export const DataView: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [importText, setImportText] = useState("");
   const [isCopying, setIsCopying] = useState(false);
-  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const copyTimeoutRef = useRef<any>(null);
 
   // 清理定时器
   useEffect(() => {

@@ -3,6 +3,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { foldersAtom, isConnectedAtom, sortByAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo, settingsAtom, SortType } from "../store/atoms";
 import { FolderCard } from "./FolderCard";
 import { api } from "../utils/api";
+import { StatusPrefix, formatStatusName } from "../utils/status";
 
 export const FolderList = () => {
   const [folders, setFolders] = useAtom(foldersAtom);
@@ -187,7 +188,7 @@ export const FolderList = () => {
             ...f,
             id: encodeURIComponent(predictedPath).replace(/%/g, "_"),
             path: predictedPath,
-            name: `${label}: ${name}`,
+            name: formatStatusName(label === "Moving" ? StatusPrefix.MOVING : StatusPrefix.GROUPING, name),
           };
         }
         return f;
@@ -207,10 +208,12 @@ export const FolderList = () => {
         setFolders((prev) =>
           prev.map((f) => {
             const result = succeeded.find((r) => {
-              const original = originalFoldersMap.get(r.path);
-              return original && original.id === f.id;
+              const folderName = r.path.split("/").filter(Boolean).pop() || r.path;
+              const cleanParent = targetParent.endsWith("/") ? targetParent.slice(0, -1) : targetParent;
+              const predictedPath = `${cleanParent}/${folderName}`;
+              return f.path === predictedPath;
             });
-            if (result) {
+            if (result && result.newPath) {
               const newPath = result.newPath;
               const name = newPath.split("/").pop() || newPath;
               return {
@@ -229,9 +232,13 @@ export const FolderList = () => {
         setFolders((prev) =>
           prev.map((f) => {
             for (const failedResult of failed) {
-              const original = originalFoldersMap.get(failedResult.path);
-              if (original && original.id === f.id) {
-                return original;
+              const folderName = failedResult.path.split("/").filter(Boolean).pop() || failedResult.path;
+              const cleanParent = targetParent.endsWith("/") ? targetParent.slice(0, -1) : targetParent;
+              const predictedPath = `${cleanParent}/${folderName}`;
+              
+              if (f.path === predictedPath) {
+                const original = originalFoldersMap.get(failedResult.path);
+                if (original) return original;
               }
             }
             return f;

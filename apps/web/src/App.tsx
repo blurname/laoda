@@ -1,16 +1,28 @@
-import React from "react";
-import { useAtomValue } from "jotai";
+import React, { useEffect } from "react";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Toolbar } from "./components/Toolbar";
 import { FolderList } from "./components/FolderList";
 import { DataView } from "./components/DataView";
 import { SyncView } from "./components/SyncView";
 import { ToastContainer } from "./components/Toast";
-import { viewAtom } from "./store/atoms";
+import { viewAtom, foldersAtom } from "./store/atoms";
 import { useSocket } from "./hooks/useSocket";
+import { stripStatusPrefix } from "./utils/status";
 
 function App() {
   const currentView = useAtomValue(viewAtom);
+  const setFolders = useSetAtom(foldersAtom);
   useSocket();
+
+  // Cleanup: strip any optimistic status prefixes from folder names on mount
+  useEffect(() => {
+    setFolders((prev) =>
+      prev.map((f) => ({
+        ...f,
+        name: stripStatusPrefix(f.name),
+      }))
+    );
+  }, [setFolders]);
 
   return (
     <div className="h-screen bg-zinc-200 flex flex-col font-sans overflow-hidden">

@@ -3,6 +3,8 @@ import { useAtom, useSetAtom } from "jotai";
 import { selectedIDEAtom, foldersAtom, viewAtom, managedFilesAtom, toastsAtom, ToastInfo, settingsAtom } from "../store/atoms";
 import { api } from "../utils/api";
 
+import { StatusPrefix, formatStatusName } from "../utils/status";
+
 const SUPPORTED_IDES = [
   "Cursor",
   "VSCode",
@@ -45,7 +47,7 @@ export const Toolbar = () => {
       const id = encodeURIComponent(path).replace(/%/g, "_");
       const newFolder = {
         id,
-        name: `Importing: ${name}`,
+        name: formatStatusName(StatusPrefix.IMPORTING, name),
         path,
         branch: "loading...",
         diffCount: 0,

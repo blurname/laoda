@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { FolderInfo, selectedIDEAtom, foldersAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo, settingsAtom } from "../store/atoms";
 import { api } from "../utils/api";
+import { StatusPrefix, formatStatusName } from "../utils/status";
 
 interface FolderCardProps {
   folder: FolderInfo;
@@ -20,8 +21,8 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUngrouping, setIsUngrouping] = useState(false);
-  const duplicateToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const deleteToastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const duplicateToastTimeoutRef = useRef<any>(null);
+  const deleteToastTimeoutRef = useRef<any>(null);
 
   // ... (useEffect remains same)
 
@@ -55,7 +56,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
             ...f,
             id: encodeURIComponent(newPath).replace(/%/g, "_"),
             path: newPath,
-            name: `Ungrouping: ${name}`
+            name: formatStatusName(StatusPrefix.UNGROUPING, name)
           };
         }
         return f;
@@ -69,10 +70,11 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       if (succeeded.length > 0) {
         setFolders(prev => prev.map(f => {
           const result = succeeded.find(r => {
-            const original = originalFoldersMap.get(r.path);
-            return original && original.id === f.id;
+            const fileName = r.path.split("/").filter(Boolean).pop() || r.path;
+            const predictedPath = `${targetParent.endsWith("/") ? targetParent : targetParent + "/"}${fileName}`;
+            return f.path === predictedPath;
           });
-          if (result) {
+          if (result && result.newPath) {
             const newPath = result.newPath;
             const name = newPath.split("/").pop() || newPath;
             return { ...f, id: encodeURIComponent(newPath).replace(/%/g, "_"), path: newPath, name };
@@ -84,8 +86,13 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       if (failed.length > 0) {
         setFolders(prev => prev.map(f => {
           for (const fr of failed) {
-            const original = originalFoldersMap.get(fr.path);
-            if (original && original.id === f.id) return original;
+            const fileName = fr.path.split("/").filter(Boolean).pop() || fr.path;
+            const predictedPath = `${targetParent.endsWith("/") ? targetParent : targetParent + "/"}${fileName}`;
+            
+            if (f.path === predictedPath) {
+              const original = originalFoldersMap.get(fr.path);
+              if (original) return original;
+            }
           }
           return f;
         }));
@@ -123,30 +130,24 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       return;
     }
 
-    if (isGroup && groupChildren) {
-      const confirm = window.confirm(`Open all ${groupChildren.length} projects in ${ideConfig.value}?`);
-      if (!confirm) return;
-      
-      for (const child of groupChildren) {
-        try {
-          await api.openInIDE(ideConfig.value, child.path);
-        } catch (err) {
-          console.error(`Failed to open ${child.path}:`, err);
-        }
-      }
-      return;
-    }
-
     if (!ideConfig.value) {
       alert("Please select a target IDE first");
       return;
     }
+
     try {
       await api.openInIDE(ideConfig.value, folder.path);
       // 更新最近使用时间
-      setFolders(prev => prev.map(f => 
-        f.path === folder.path ? { ...f, lastUsedAt: Date.now() } : f
-      ));
+      const now = Date.now();
+      if (isGroup && groupChildren) {
+        setFolders(prev => prev.map(f => 
+          groupChildren.some(child => child.path === f.path) ? { ...f, lastUsedAt: now } : f
+        ));
+      } else {
+        setFolders(prev => prev.map(f => 
+          f.path === folder.path ? { ...f, lastUsedAt: now } : f
+        ));
+      }
     } catch (err) {
       console.error(`Failed to open ${ideConfig.value}:`, err);
     }
@@ -191,7 +192,7 @@ export const FolderCard: React.FC<FolderCardProps> = ({ folder, isBackendConnect
       const name = predictedPath.split("/").filter(Boolean).pop() || predictedPath;
       const newFolder = {
         id: tempId,
-        name: `Copying: ${name}`,
+        name: formatStatusName(StatusPrefix.COPYING, name),
         path: predictedPath,
         branch: "predicting...",
         diffCount: 0,
