@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useRef } from "react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { foldersAtom, isConnectedAtom, sortByAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo, settingsAtom, SortType } from "../store/atoms";
+import { nodesAtom, isConnectedAtom, sortByAtom, isMultiSelectModeAtom, selectedPathsAtom, toastsAtom, ToastInfo, settingsAtom, SortType, RegistryNode, LeafNode, GroupNode } from "../store/atoms";
 import { FolderCard } from "./FolderCard";
 import { api } from "../utils/api";
 import { StatusPrefix, formatStatusName } from "../utils/status";
 
 export const FolderList = () => {
-  const [folders, setFolders] = useAtom(foldersAtom);
+  const [nodes, setNodes] = useAtom(nodesAtom);
   const isConnected = useAtomValue(isConnectedAtom);
   const settings = useAtomValue(settingsAtom);
   const [sortBy, setSortBy] = useAtom(sortByAtom);
@@ -18,75 +18,32 @@ export const FolderList = () => {
   const [groupNameInput, setGroupNameInput] = useState("");
   const movingLock = useRef(false);
 
-  const treeItems = useMemo(() => {
-    let sorted = [...folders];
+  const sortedNodes = useMemo(() => {
+    const result = [...nodes];
     
-    if (sortBy === "name") {
-      sorted.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === "added") {
-      sorted.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
-    } else if (sortBy === "lastUsed") {
-      sorted.sort((a, b) => (b.lastUsedAt || 0) - (a.lastUsedAt || 0));
-    }
-    
-    // Group by parent directory
-    const groups = new Map<string, typeof folders>();
-    sorted.forEach(f => {
-      const parts = f.path.split("/").filter(Boolean);
-      if (parts.length <= 1) return; // Cannot group root or single level folders
-      const parent = "/" + parts.slice(0, -1).join("/");
-      if (!groups.has(parent)) groups.set(parent, []);
-      groups.get(parent)!.push(f);
-    });
-
-    const result: (
-      | { type: "project"; folder: (typeof folders)[0] }
-      | { type: "group"; path: string; name: string; children: typeof folders; maxLastUsedAt: number }
-    )[] = [];
-
-    const processedParents = new Set<string>();
-
-    sorted.forEach(f => {
-      const parts = f.path.split("/").filter(Boolean);
-      if (parts.length <= 1) {
-        result.push({ type: "project", folder: f });
-        return;
+    const getTime = (node: RegistryNode) => {
+      if (sortBy === "added") {
+        return node.type === "group" 
+          ? Math.max(node.addedAt, ...node.children.map(c => c.addedAt)) 
+          : node.addedAt;
       }
-      const parent = "/" + parts.slice(0, -1).join("/");
-      if (processedParents.has(parent)) return;
-
-      const groupProjects = groups.get(parent)!;
-      if (groupProjects.length > 1) {
-        result.push({
-          type: "group",
-          path: parent,
-          name: parent.split("/").filter(Boolean).pop() || parent,
-          children: groupProjects,
-          maxLastUsedAt: Math.max(...groupProjects.map(p => p.lastUsedAt || 0))
-        });
-        processedParents.add(parent);
-      } else {
-        result.push({ type: "project", folder: f });
+      if (sortBy === "lastUsed") {
+        return node.type === "group" 
+          ? Math.max(node.lastUsedAt, ...node.children.map(c => c.lastUsedAt)) 
+          : node.lastUsedAt;
       }
-    });
+      return 0;
+    };
 
-    // If sorting by lastUsed, we need to sort groups by their maxLastUsedAt as well
-    if (sortBy === "lastUsed") {
-      result.sort((a, b) => {
-        const timeA = a.type === "group" ? a.maxLastUsedAt : a.folder.lastUsedAt || 0;
-        const timeB = b.type === "group" ? b.maxLastUsedAt : b.folder.lastUsedAt || 0;
-        return timeB - timeA;
-      });
-    } else if (sortBy === "added") {
-      result.sort((a, b) => {
-        const timeA = a.type === "group" ? Math.max(...a.children.map(c => c.addedAt || 0)) : a.folder.addedAt || 0;
-        const timeB = b.type === "group" ? Math.max(...b.children.map(c => c.addedAt || 0)) : b.folder.addedAt || 0;
-        return timeB - timeA;
-      });
-    }
+    result.sort((a, b) => {
+      if (sortBy === "name") {
+        return a.name.localeCompare(b.name);
+      }
+      return getTime(b) - getTime(a);
+    });
 
     return result;
-  }, [folders, sortBy]);
+  }, [nodes, sortBy]);
 
   const handleMoveBulk = async () => {
     if (selectedPaths.length === 0 || movingLock.current) return;
@@ -135,13 +92,62 @@ export const FolderList = () => {
     setToasts((prev: ToastInfo[]) => [...prev, { id: toastId, message: `Grouping ${selectedPaths.length} items...`, type: "loading" }]);
 
     try {
-      // Calculate common parent directory
+      // 检查是否所有选中的项目都在同一个父目录下
+      const parentDirs = new Set(selectedPaths.map(p => {
+        const parts = p.split("/").filter(Boolean);
+        return "/" + parts.slice(0, -1).join("/");
+      }));
+
+      const allLeafs: LeafNode[] = [];
+      nodes.forEach(node => {
+        if (node.type === "leaf" && selectedPaths.includes(node.path)) {
+          allLeafs.push(node);
+        } else if (node.type === "group") {
+          node.children.forEach(child => {
+            if (selectedPaths.includes(child.path)) allLeafs.push(child);
+          });
+        }
+      });
+
+      if (parentDirs.size === 1) {
+        // 场景 A：逻辑分组
+        setNodes(prev => {
+          const newNodes: RegistryNode[] = prev.filter(n => {
+            if (n.type === "leaf") return !selectedPaths.includes(n.path);
+            return true;
+          }).map(n => {
+            if (n.type === "group") {
+              return { ...n, children: n.children.filter(c => !selectedPaths.includes(c.path)) };
+            }
+            return n;
+          }).filter(n => n.type === "leaf" || n.children.length > 0);
+
+          const newGroup: GroupNode = {
+            type: "group",
+            id: groupName,
+            name: groupName,
+            children: allLeafs,
+            addedAt: Date.now(),
+            lastUsedAt: Math.max(0, ...allLeafs.map(l => l.lastUsedAt))
+          };
+          return [...newNodes, newGroup];
+        });
+
+        setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Group created", type: "success" } : t));
+        setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
+        setSelectedPaths([]);
+        setIsMultiSelect(false);
+        movingLock.current = false;
+        setIsMoving(false);
+        return;
+      }
+
+      // 场景 B：物理分组
       const pathsParts = selectedPaths.map(p => p.split("/").filter(Boolean));
       let commonParts: string[] = [];
       if (pathsParts.length > 0) {
         const minLen = Math.min(...pathsParts.map(p => p.length));
         const first = pathsParts[0];
-        
         for (let i = 0; i < minLen; i++) { 
           const part = first[i];
           if (part && pathsParts.every(pp => pp[i] === part)) {
@@ -158,7 +164,7 @@ export const FolderList = () => {
       }
 
       const targetDir = `${targetParent.endsWith("/") ? targetParent : targetParent + "/"}${groupName}`;
-      await performMove(selectedPaths, targetDir, toastId, "Grouping");
+      await performMove(selectedPaths, targetDir, toastId, "Grouping", groupName);
     } catch (err) {
       console.error("Grouping failed:", err);
       movingLock.current = false;
@@ -166,107 +172,91 @@ export const FolderList = () => {
     }
   };
 
-  const performMove = async (paths: string[], targetParent: string, toastId: string, label: "Moving" | "Grouping") => {
-    console.log(`Starting performMove: ${label}`, { paths, targetParent });
-    // 乐观更新：先保存原始数据（按路径索引），然后立即更新路径
-    const originalFoldersMap = new Map<string, typeof folders[0]>();
-    folders.forEach((f) => {
-      if (paths.includes(f.path)) {
-        originalFoldersMap.set(f.path, { ...f });
+  const performMove = async (paths: string[], targetParent: string, toastId: string, label: "Moving" | "Grouping", groupName?: string) => {
+    const originalNodes = [...nodes];
+    
+    const findAndFlatten = (nodes: RegistryNode[]): LeafNode[] => {
+      const leafs: LeafNode[] = [];
+      nodes.forEach(n => {
+        if (n.type === "leaf") leafs.push(n);
+        else leafs.push(...n.children);
+      });
+      return leafs;
+    };
+
+    const movingLeafs = findAndFlatten(nodes).filter(l => paths.includes(l.path));
+
+    // 乐观更新
+    setNodes(prev => {
+      // 1. 从原位置移除
+      let newNodes = prev.map(n => {
+        if (n.type === "leaf") return n;
+        return { ...n, children: n.children.filter(c => !paths.includes(c.path)) };
+      }).filter(n => n.type === "leaf" ? !paths.includes(n.path) : n.children.length > 0);
+
+      // 2. 创建更新后的 leafs
+      const updatedLeafs: LeafNode[] = movingLeafs.map(l => {
+        const folderName = l.path.split("/").filter(Boolean).pop() || l.path;
+        const cleanParent = targetParent.endsWith("/") ? targetParent.slice(0, -1) : targetParent;
+        const predictedPath = `${cleanParent}/${folderName}`;
+        const name = predictedPath.split("/").filter(Boolean).pop() || predictedPath;
+        return {
+          ...l,
+          id: encodeURIComponent(predictedPath).replace(/%/g, "_"),
+          path: predictedPath,
+          name: formatStatusName(label === "Moving" ? StatusPrefix.MOVING : StatusPrefix.GROUPING, name),
+        };
+      });
+
+      if (groupName) {
+        const newGroup: GroupNode = {
+          type: "group",
+          id: groupName,
+          name: groupName,
+          children: updatedLeafs,
+          addedAt: Date.now(),
+          lastUsedAt: Math.max(0, ...updatedLeafs.map(l => l.lastUsedAt))
+        };
+        return [...newNodes, newGroup];
+      } else {
+        return [...newNodes, ...updatedLeafs];
       }
     });
 
-    // 预测新路径并立即更新
-    setFolders((prev) =>
-      prev.map((f) => {
-        if (paths.includes(f.path)) {
-          const folderName = f.path.split("/").filter(Boolean).pop() || f.path;
-          const cleanParent = targetParent.endsWith("/") ? targetParent.slice(0, -1) : targetParent;
-          const predictedPath = `${cleanParent}/${folderName}`;
-          const name = predictedPath.split("/").filter(Boolean).pop() || predictedPath;
-          return {
-            ...f,
-            id: encodeURIComponent(predictedPath).replace(/%/g, "_"),
-            path: predictedPath,
-            name: formatStatusName(label === "Moving" ? StatusPrefix.MOVING : StatusPrefix.GROUPING, name),
-          };
-        }
-        return f;
-      })
-    );
-
     try {
-      console.log("Calling api.moveBulk...");
       const results = await api.moveBulk(paths, targetParent, settings.copyIncludeFiles, settings.operationMode);
-      console.log("api.moveBulk returned:", results);
-      
-      const failed = results.filter(r => !r.success);
       const succeeded = results.filter(r => r.success);
+      const failed = results.filter(r => !r.success);
       
-      // 更新为实际路径（可能与预测的不同）
-      if (succeeded.length > 0) {
-        setFolders((prev) =>
-          prev.map((f) => {
-            const result = succeeded.find((r) => {
-              const folderName = r.path.split("/").filter(Boolean).pop() || r.path;
-              const cleanParent = targetParent.endsWith("/") ? targetParent.slice(0, -1) : targetParent;
-              const predictedPath = `${cleanParent}/${folderName}`;
-              return f.path === predictedPath;
-            });
-            if (result && result.newPath) {
-              const newPath = result.newPath;
-              const name = newPath.split("/").pop() || newPath;
-              return {
-                ...f,
-                id: encodeURIComponent(newPath).replace(/%/g, "_"),
-                path: newPath,
-                name: name,
-              };
-            }
-            return f;
-          })
-        );
-      }
-
       if (failed.length > 0) {
-        setFolders((prev) =>
-          prev.map((f) => {
-            for (const failedResult of failed) {
-              const folderName = failedResult.path.split("/").filter(Boolean).pop() || failedResult.path;
-              const cleanParent = targetParent.endsWith("/") ? targetParent.slice(0, -1) : targetParent;
-              const predictedPath = `${cleanParent}/${folderName}`;
-              
-              if (f.path === predictedPath) {
-                const original = originalFoldersMap.get(failedResult.path);
-                if (original) return original;
-              }
-            }
-            return f;
-          })
-        );
+        setNodes(originalNodes); // 简单回滚
         setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Partial operation failed", type: "error" } : t));
       } else {
+        // 更新为真实路径
+        setNodes(prev => prev.map(n => {
+          if (n.type === "leaf") {
+            const res = succeeded.find(r => encodeURIComponent(r.newPath!).replace(/%/g, "_") === n.id);
+            if (res) return { ...n, path: res.newPath!, name: res.newPath!.split("/").pop()! };
+            return n;
+          } else {
+            return {
+              ...n,
+              children: n.children.map(c => {
+                const res = succeeded.find(r => encodeURIComponent(r.newPath!).replace(/%/g, "_") === c.id);
+                if (res) return { ...c, path: res.newPath!, name: res.newPath!.split("/").pop()! };
+                return c;
+              })
+            };
+          }
+        }));
         setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Success", type: "success" } : t));
       }
     } catch (err) {
-      console.error("Error inside performMove api call:", err);
-      // Rollback all on critical fetch error
-      setFolders((prev) =>
-        prev.map((f) => {
-          const original = originalFoldersMap.get(f.path);
-          return original || f;
-        })
-      );
+      setNodes(originalNodes);
       setToasts((prev: ToastInfo[]) => prev.map(t => t.id === toastId ? { ...t, message: "Operation failed", type: "error" } : t));
     } finally {
       setTimeout(() => setToasts((prev: ToastInfo[]) => prev.filter(t => t.id !== toastId)), 2000);
-
-      // Start watching new paths regardless of success/fail (existing paths will be ignored)
-      paths.forEach(p => {
-        // We don't have the new path here easily if it failed, but we can try to re-watch original
-        api.watchFolder(p).catch(() => {});
-      });
-      
+      paths.forEach(p => api.watchFolder(p).catch(() => {}));
       setSelectedPaths([]);
       setIsMultiSelect(false);
     }
@@ -278,7 +268,7 @@ export const FolderList = () => {
         <div className="flex items-center gap-4">
           <h2 className="text-[10px] font-black text-zinc-500 flex items-center gap-2">
             Disk projects list
-            <span className="bg-zinc-300 px-1 rounded-none text-zinc-600 font-mono">[{folders.length}]</span>
+            <span className="bg-zinc-300 px-1 rounded-none text-zinc-600 font-mono">[{nodes.length}]</span>
           </h2>
         </div>
 
@@ -320,29 +310,18 @@ export const FolderList = () => {
               <button
                 onClick={handleMoveBulk}
                 disabled={isMoving}
-                title={`Move ${selectedPaths.length} items`}
-                className={`w-24 h-24 border-2 flex flex-col items-center justify-center transition-all 
-                  ${isMoving 
-                    ? "bg-zinc-400 border-zinc-500 text-zinc-200 cursor-default" 
-                    : "bg-green-600 border-green-700 text-white shadow-[0_6px_0_0_#15803d,0_15px_30px_rgba(0,0,0,0.3)] hover:bg-green-500 hover:border-green-600 active:shadow-none active:translate-y-[6px] cursor-default"
-                  }`}
+                className="w-24 h-24 border-2 flex flex-col items-center justify-center transition-all bg-green-600 border-green-700 text-white shadow-[0_6px_0_0_#15803d,0_15px_30px_rgba(0,0,0,0.3)] hover:bg-green-500 active:shadow-none active:translate-y-[6px]"
               >
                 <span className="text-[24px] font-black mb-1">{selectedPaths.length}</span>
-                <span className="text-[10px] font-black leading-none">Move</span>
+                <span className="text-[10px] font-black">Move</span>
               </button>
-
               <button
                 onClick={handleGroup}
                 disabled={isMoving}
-                title={`Group ${selectedPaths.length} items`}
-                className={`w-24 h-24 border-2 flex flex-col items-center justify-center transition-all 
-                  ${isMoving 
-                    ? "bg-zinc-400 border-zinc-500 text-zinc-200 cursor-default" 
-                    : "bg-zinc-700 border-zinc-800 text-zinc-100 shadow-[0_6px_0_0_#3f3f46,0_15px_30px_rgba(0,0,0,0.3)] hover:bg-zinc-600 active:shadow-none active:translate-y-[6px] cursor-default"
-                  }`}
+                className="w-24 h-24 border-2 flex flex-col items-center justify-center transition-all bg-zinc-700 border-zinc-800 text-zinc-100 shadow-[0_6px_0_0_#3f3f46,0_15px_30px_rgba(0,0,0,0.3)] hover:bg-zinc-600 active:shadow-none active:translate-y-[6px]"
               >
                 <span className="text-[24px] font-black mb-1">{selectedPaths.length}</span>
-                <span className="text-[10px] font-black leading-none">Group</span>
+                <span className="text-[10px] font-black">Group</span>
               </button>
             </>
           ) : (
@@ -356,75 +335,50 @@ export const FolderList = () => {
                   if (e.key === "Enter") submitGroup();
                   if (e.key === "Escape") setIsNamingGroup(false);
                 }}
-                placeholder="folder_name"
-                className="w-full bg-zinc-100 border border-zinc-300 px-2 py-1.5 text-xs font-mono text-zinc-700 focus:outline-none focus:border-zinc-500"
+                className="w-full bg-zinc-100 border border-zinc-300 px-2 py-1.5 text-xs font-mono"
               />
               <div className="flex gap-2">
-                <button
-                  onClick={() => setIsNamingGroup(false)}
-                  className="flex-1 py-1 text-[9px] font-black bg-zinc-200 text-zinc-500 border border-zinc-300 hover:bg-zinc-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={submitGroup}
-                  className="flex-1 py-1 text-[9px] font-black bg-zinc-700 text-zinc-100 border border-zinc-700 hover:bg-zinc-800"
-                >
-                  OK
-                </button>
+                <button onClick={() => setIsNamingGroup(false)} className="flex-1 py-1 text-[9px] font-black bg-zinc-200">Cancel</button>
+                <button onClick={submitGroup} className="flex-1 py-1 text-[9px] font-black bg-zinc-700 text-zinc-100">OK</button>
               </div>
             </div>
           )}
         </div>
       )}
 
-      {folders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 border border-zinc-300 bg-zinc-50 text-zinc-400">
-          <p className="text-[10px] font-bold">No entries found in registry.</p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1.5 pb-10">
-          {treeItems.map((item) => {
-            if (item.type === "group") {
-              return (
-                <div key={item.path} className="flex flex-col gap-1">
-          <FolderCard 
-            folder={{
-              id: encodeURIComponent(item.path).replace(/%/g, "_"),
-              name: item.name,
-              path: item.path,
-              branch: "",
-              diffCount: 0,
-              latestCommit: "",
-              addedAt: 0,
-              lastUsedAt: item.maxLastUsedAt
-            }}
-            isBackendConnected={isConnected}
-            isGroup={true}
-            groupChildren={item.children}
-          />
-                  <div className="flex flex-col gap-1 pl-6 border-l-2 border-zinc-300 ml-4 py-1">
-                    {item.children.map(child => (
-                      <FolderCard 
-                        key={child.id} 
-                        folder={child} 
-                        isBackendConnected={isConnected} 
-                      />
-                    ))}
-                  </div>
+      <div className="flex flex-col gap-1.5 pb-10">
+        {sortedNodes.map((node) => (
+          <div key={node.id} className="flex flex-col gap-1">
+            {node.type === "group" ? (
+              <>
+                <FolderCard 
+                  folder={{
+                    type: "leaf",
+                    id: node.id,
+                    name: node.name,
+                    path: node.id, // Group doesn't have a single path, use ID
+                    branch: "",
+                    diffCount: 0,
+                    latestCommit: "",
+                    addedAt: node.addedAt,
+                    lastUsedAt: node.lastUsedAt
+                  } as LeafNode}
+                  isBackendConnected={isConnected}
+                  isGroup={true}
+                  groupChildren={node.children}
+                />
+                <div className="flex flex-col gap-1 pl-6 border-l-2 border-zinc-300 ml-4 py-1">
+                  {node.children.map(child => (
+                    <FolderCard key={child.id} folder={child} isBackendConnected={isConnected} />
+                  ))}
                 </div>
-              );
-            }
-            return (
-              <FolderCard 
-                key={item.folder.id} 
-                folder={item.folder} 
-                isBackendConnected={isConnected} 
-              />
-            );
-          })}
-        </div>
-      )}
+              </>
+            ) : (
+              <FolderCard folder={node} isBackendConnected={isConnected} />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

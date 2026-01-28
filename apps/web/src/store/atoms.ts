@@ -1,7 +1,8 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
-export interface FolderInfo {
+export interface LeafNode {
+  type: "leaf";
   id: string;
   path: string;
   name: string;
@@ -11,6 +12,17 @@ export interface FolderInfo {
   addedAt: number;
   lastUsedAt: number;
 }
+
+export interface GroupNode {
+  type: "group";
+  id: string;
+  name: string;
+  children: LeafNode[];
+  addedAt: number;
+  lastUsedAt: number;
+}
+
+export type RegistryNode = GroupNode | LeafNode;
 
 export interface ManagedFile {
   id: string;
@@ -34,7 +46,7 @@ export interface Settings {
 export type SortType = "added" | "name" | "lastUsed";
 
 export interface LaodaStorage {
-  "imported-folders": FolderInfo[];
+  "imported-folders": RegistryNode[];
   "selected-ide-config": IDEConfig;
   "current-view": ViewType;
   "managed-files": ManagedFile[];
@@ -42,7 +54,7 @@ export interface LaodaStorage {
   "settings": Settings;
 }
 
-export const foldersAtom = atomWithStorage<LaodaStorage["imported-folders"]>("imported-folders", []);
+export const nodesAtom = atomWithStorage<RegistryNode[]>("imported-folders", []);
 
 export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide-config"]>("selected-ide-config", {
   type: "preset",

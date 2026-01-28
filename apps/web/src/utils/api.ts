@@ -1,5 +1,5 @@
 import { registerResolver } from "../hooks/useSocket";
-import type { MoveResult } from "@laoda/shared";
+import type { MoveResult, ServerMessagePayload } from "@laoda/shared";
 
 const isProd = import.meta.env.PROD;
 const API_BASE = isProd ? window.location.origin : "http://localhost:26124";
@@ -11,7 +11,7 @@ export const api = {
         resolve(null); // 超时也按取消处理
       }, 60000);
 
-      registerResolver("FOLDER_PICKED", (data) => {
+      registerResolver("FOLDER_PICKED", (data: ServerMessagePayload<"FOLDER_PICKED">) => {
         clearTimeout(timeout);
         resolve(data.path);
         return true;
@@ -79,10 +79,10 @@ export const api = {
         reject(new Error("Duplication timeout: No response from server"));
       }, 30000); // 30秒超时
       
-      registerResolver("DUPLICATION_COMPLETE", (data) => {
+      registerResolver("DUPLICATION_COMPLETE", (data: ServerMessagePayload<"DUPLICATION_COMPLETE">) => {
         if (data.path === path) {
           clearTimeout(timeout);
-          if (data.success) resolve(data.newPath);
+          if (data.success) resolve(data.newPath!);
           else reject(new Error(data.error || "Duplication failed"));
           return true;
         }
@@ -112,7 +112,7 @@ export const api = {
         reject(new Error("Move operation timeout"));
       }, 60000);
 
-      registerResolver("MOVE_BULK_COMPLETE", (data) => {
+      registerResolver("MOVE_BULK_COMPLETE", (data: ServerMessagePayload<"MOVE_BULK_COMPLETE">) => {
         clearTimeout(timeout);
         // Since MOVE_BULK_COMPLETE usually happens once for the entire request,
         // we can resolve it directly.
@@ -153,7 +153,7 @@ export const api = {
         reject(new Error("Deletion timeout: No response from server"));
       }, 30000); // 30秒超时
       
-      registerResolver("DELETION_COMPLETE", (data) => {
+      registerResolver("DELETION_COMPLETE", (data: ServerMessagePayload<"DELETION_COMPLETE">) => {
         if (data.path === path) {
           clearTimeout(timeout);
           if (data.success) resolve();
@@ -184,4 +184,3 @@ export const api = {
     return `${API_BASE.replace("http", "ws")}/ws`;
   }
 };
-

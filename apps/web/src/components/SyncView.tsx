@@ -1,27 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useSetAtom, useAtomValue } from "jotai";
-import { foldersAtom, managedFilesAtom, ManagedFile } from "../store/atoms";
+import { nodesAtom, managedFilesAtom, ManagedFile, LeafNode } from "../store/atoms";
 import { api } from "../utils/api";
 
 const ManagedFileCard: React.FC<{ file: ManagedFile }> = ({ file }) => {
   const setManagedFiles = useSetAtom(managedFilesAtom);
-  const folders = useAtomValue(foldersAtom);
+  const nodes = useAtomValue(nodesAtom);
   
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
+
+  const allLeafNodes = useMemo(() => {
+    const leafs: LeafNode[] = [];
+    nodes.forEach(n => {
+      if (n.type === "leaf") leafs.push(n);
+      else leafs.push(...n.children);
+    });
+    return leafs;
+  }, [nodes]);
 
   // Auto-matching logic
   const getMatchedFolders = () => {
     if (!file.targetPattern) return [];
     try {
       const regex = new RegExp(`^${file.targetPattern}(-\\d+)?$`);
-      return folders.filter(f => regex.test(f.name));
+      return allLeafNodes.filter(f => regex.test(f.name));
     } catch {
       return [];
     }
   };
 
   const matchedFolders = getMatchedFolders();
-  const isPatternValid = folders.some(f => f.name.startsWith(file.targetPattern));
+  const isPatternValid = allLeafNodes.some(f => f.name.startsWith(file.targetPattern));
 
   const updateFile = (updates: Partial<ManagedFile>) => {
     setManagedFiles(prev => prev.map(f => 

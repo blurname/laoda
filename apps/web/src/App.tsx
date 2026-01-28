@@ -5,24 +5,27 @@ import { FolderList } from "./components/FolderList";
 import { DataView } from "./components/DataView";
 import { SyncView } from "./components/SyncView";
 import { ToastContainer } from "./components/Toast";
-import { viewAtom, foldersAtom } from "./store/atoms";
+import { viewAtom, nodesAtom } from "./store/atoms";
 import { useSocket } from "./hooks/useSocket";
 import { stripStatusPrefix } from "./utils/status";
 
 function App() {
   const currentView = useAtomValue(viewAtom);
-  const setFolders = useSetAtom(foldersAtom);
+  const setNodes = useSetAtom(nodesAtom);
   useSocket();
 
-  // Cleanup: strip any optimistic status prefixes from folder names on mount
+  // Cleanup: strip any optimistic status prefixes from node names on mount
   useEffect(() => {
-    setFolders((prev) =>
-      prev.map((f) => ({
-        ...f,
-        name: stripStatusPrefix(f.name),
-      }))
+    setNodes((prev) =>
+      prev.map((n) => {
+        if (n.type === "leaf") return { ...n, name: stripStatusPrefix(n.name) };
+        return {
+          ...n,
+          children: n.children.map(c => ({ ...c, name: stripStatusPrefix(c.name) }))
+        };
+      })
     );
-  }, [setFolders]);
+  }, [setNodes]);
 
   return (
     <div className="h-screen bg-zinc-200 flex flex-col font-sans overflow-hidden">

@@ -2,12 +2,13 @@ import React, { useState, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import {
   selectedIDEAtom,
-  foldersAtom,
+  nodesAtom,
   viewAtom,
   managedFilesAtom,
   toastsAtom,
   ToastInfo,
   settingsAtom,
+  LeafNode,
 } from "../store/atoms";
 import { api } from "../utils/api";
 
@@ -22,7 +23,7 @@ export const Toolbar = () => {
   const [settings, setSettings] = useAtom(settingsAtom);
   const [showSettings, setShowSettings] = useState(false);
   const [currentView, setCurrentView] = useAtom(viewAtom);
-  const setFolders = useSetAtom(foldersAtom);
+  const setNodes = useSetAtom(nodesAtom);
   const setManagedFiles = useSetAtom(managedFilesAtom);
   const setToasts = useSetAtom(toastsAtom);
 
@@ -49,7 +50,8 @@ export const Toolbar = () => {
       // 乐观更新：立即添加文件夹
       const name = path.split("/").filter(Boolean).pop() || path;
       const id = encodeURIComponent(path).replace(/%/g, "_");
-      const newFolder = {
+      const newLeaf: LeafNode = {
+        type: "leaf",
         id,
         name: formatStatusName(StatusPrefix.IMPORTING, name),
         path,
@@ -60,24 +62,41 @@ export const Toolbar = () => {
         lastUsedAt: 0,
       };
 
-      setFolders((prev) => {
-        if (prev.find((f) => f.path === path)) return prev;
-        return [...prev, newFolder];
+      setNodes((prev) => {
+        const exists = prev.some(n => {
+          if (n.type === "leaf") return n.path === path;
+          return n.children.some(c => c.path === path);
+        });
+        if (exists) return prev;
+        return [...prev, newLeaf];
       });
 
       // 获取 Git 信息
       try {
         const gitInfo = await api.watchFolder(path);
         const finalName = path.split("/").filter(Boolean).pop() || path;
-        setFolders((prev) =>
-          prev.map((f) =>
-            f.path === path ? { ...f, ...gitInfo, name: finalName } : f,
-          ),
+        setNodes((prev) =>
+          prev.map((n) => {
+            if (n.type === "leaf" && n.path === path) return { ...n, ...gitInfo, name: finalName };
+            if (n.type === "group") {
+              return {
+                ...n,
+                children: n.children.map(c => c.path === path ? { ...c, ...gitInfo, name: finalName } : c)
+              };
+            }
+            return n;
+          }),
         );
       } catch (watchErr) {
         console.error("Failed to watch folder:", watchErr);
-        // watchFolder 失败时回滚：移除已添加的文件夹
-        setFolders((prev) => prev.filter((f) => f.path !== path));
+        // 回退：移除已添加的文件夹
+        setNodes((prev) => prev.filter((n) => {
+          if (n.type === "leaf") return n.path !== path;
+          return true;
+        }).map(n => {
+          if (n.type === "group") return { ...n, children: n.children.filter(c => c.path !== path) };
+          return n;
+        }).filter(n => n.type === "leaf" || n.children.length > 0));
         throw watchErr;
       }
 

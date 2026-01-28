@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import { foldersAtom, isConnectedAtom } from "../store/atoms";
+import { nodesAtom, isConnectedAtom } from "../store/atoms";
 import { api } from "../utils/api";
 import type { ServerMessage, ServerMessageType, ServerMessagePayload } from "@laoda/shared";
 
@@ -19,14 +19,14 @@ export const registerResolver = <T extends ServerMessageType>(type: T, resolve: 
 };
 
 export const useSocket = () => {
-  const [folders, setFolders] = useAtom(foldersAtom);
+  const [nodes, setNodes] = useAtom(nodesAtom);
   const setIsConnected = useSetAtom(isConnectedAtom);
-  const foldersRef = useRef(folders);
+  const nodesRef = useRef(nodes);
 
   // Keep ref up to date for the socket closure/reconnect logic
   useEffect(() => {
-    foldersRef.current = folders;
-  }, [folders]);
+    nodesRef.current = nodes;
+  }, [nodes]);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -39,19 +39,33 @@ export const useSocket = () => {
       socket.onopen = () => {
         console.log("WebSocket Connected");
         setIsConnected(true);
-        // Request Git info for existing folders from localStorage
-        if (foldersRef.current.length > 0) {
-          const paths = foldersRef.current.map((f) => f.path);
-          api.watchBulk(paths)
+        // Request Git info for all leaf nodes
+        const allPaths: string[] = [];
+        nodesRef.current.forEach(node => {
+          if (node.type === "leaf") {
+            allPaths.push(node.path);
+          } else {
+            node.children.forEach(child => allPaths.push(child.path));
+          }
+        });
+
+        if (allPaths.length > 0) {
+          api.watchBulk(allPaths)
             .then((gitInfoMap) => {
-              // Update local folders with Git info from backend
-              setFolders((prev) =>
-                prev.map((folder) => {
-                  const gitInfo = gitInfoMap[folder.path];
-                  if (gitInfo) {
-                    return { ...folder, ...gitInfo };
+              setNodes((prev) =>
+                prev.map((node) => {
+                  if (node.type === "leaf") {
+                    const gitInfo = gitInfoMap[node.path];
+                    return gitInfo ? { ...node, ...gitInfo } : node;
+                  } else {
+                    return {
+                      ...node,
+                      children: node.children.map(child => {
+                        const gitInfo = gitInfoMap[child.path];
+                        return gitInfo ? { ...child, ...gitInfo } : child;
+                      })
+                    };
                   }
-                  return folder;
                 })
               );
             })
@@ -62,18 +76,34 @@ export const useSocket = () => {
       socket.onmessage = (event) => {
         const data: ServerMessage = JSON.parse(event.data);
         if (data.type === "GIT_INFO_UPDATE") {
-          // Update Git info for a specific path
-          setFolders((prev) =>
-            prev.map((folder) => {
-              if (folder.path === data.path) {
+          setNodes((prev) =>
+            prev.map((node) => {
+              if (node.type === "leaf") {
+                if (node.path === data.path) {
+                  return {
+                    ...node,
+                    branch: data.branch,
+                    diffCount: data.diffCount,
+                    latestCommit: data.latestCommit,
+                  };
+                }
+                return node;
+              } else {
                 return {
-                  ...folder,
-                  branch: data.branch,
-                  diffCount: data.diffCount,
-                  latestCommit: data.latestCommit,
+                  ...node,
+                  children: node.children.map(child => {
+                    if (child.path === data.path) {
+                      return {
+                        ...child,
+                        branch: data.branch,
+                        diffCount: data.diffCount,
+                        latestCommit: data.latestCommit,
+                      };
+                    }
+                    return child;
+                  })
                 };
               }
-              return folder;
             })
           );
         } else {
@@ -105,5 +135,5 @@ export const useSocket = () => {
       }
       clearTimeout(timeoutId);
     };
-  }, [setFolders, setIsConnected]);
+  }, [setNodes, setIsConnected]);
 };
