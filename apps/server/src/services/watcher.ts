@@ -20,12 +20,9 @@ export function startWatching(path: string, shouldBroadcast = true) {
     });
 
     // Also watch .git/HEAD and .git/index specifically for git changes
-    const gitWatcher = watch(
-      [join(path, ".git/HEAD"), join(path, ".git/index")],
-      {
-        ignoreInitial: true,
-      },
-    );
+    const gitWatcher = watch([join(path, ".git/HEAD"), join(path, ".git/index")], {
+      ignoreInitial: true,
+    });
 
     const update = () => {
       const updatedGitInfo = getGitInfo(path);

@@ -16,16 +16,14 @@ export const ToastContainer: React.FC = () => {
             toast.type === "loading"
               ? "bg-zinc-800 border-zinc-700 text-zinc-100"
               : toast.type === "success"
-              ? "bg-green-600 border-green-700 text-white"
-              : "bg-red-600 border-red-700 text-white"
+                ? "bg-green-600 border-green-700 text-white"
+                : "bg-red-600 border-red-700 text-white"
           }`}
         >
           {toast.type === "loading" && (
             <div className="w-3 h-3 border-2 border-zinc-400 border-t-zinc-100 rounded-full animate-spin" />
           )}
-          <span className="text-[11px] font-black">
-            {toast.message}
-          </span>
+          <span className="text-[11px] font-black">{toast.message}</span>
         </div>
       ))}
     </div>

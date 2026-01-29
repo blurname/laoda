@@ -54,7 +54,7 @@ export const flattenNodes = (nodes: RegistryNode[]): LeafNode[] => {
  */
 export const updateLeafNodes = (
   nodes: RegistryNode[],
-  updateFn: (leaf: LeafNode) => LeafNode
+  updateFn: (leaf: LeafNode) => LeafNode,
 ): RegistryNode[] => {
   return nodes.map((node) => {
     if (node.type === "leaf") {

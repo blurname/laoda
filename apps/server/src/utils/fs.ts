@@ -48,10 +48,13 @@ export function copyFolderRobustly(src: string, dest: string, includeFiles: stri
       .toString()
       .split("\0")
       .filter((f) => f.trim().length > 0);
-    gitFiles.forEach(f => filesToCopySet.add(f));
+    gitFiles.forEach((f) => filesToCopySet.add(f));
     console.log(`[copyFolderRobustly] Found ${gitFiles.length} files via git ls-files`);
   } catch (e) {
-    console.warn(`[copyFolderRobustly] Git ls-files failed in ${src}, falling back to includeFiles only:`, e);
+    console.warn(
+      `[copyFolderRobustly] Git ls-files failed in ${src}, falling back to includeFiles only:`,
+      e,
+    );
   }
 
   // Add explicitly included files even if ignored by git

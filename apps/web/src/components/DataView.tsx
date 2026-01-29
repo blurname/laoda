@@ -39,9 +39,9 @@ export const DataView: React.FC = () => {
       }
 
       // Clear existing storage to avoid pollution
-      // localStorage.clear(); 
+      // localStorage.clear();
       // Actually, we should probably only overwrite keys that we manage.
-      
+
       Object.entries(data).forEach(([key, value]) => {
         localStorage.setItem(key, JSON.stringify(value));
       });
@@ -66,13 +66,13 @@ export const DataView: React.FC = () => {
 
   const handleCopy = async () => {
     if (isCopying) return;
-    
+
     // 清除之前的定时器
     if (copyTimeoutRef.current) {
       clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = null;
     }
-    
+
     setIsCopying(true);
     try {
       const jsonText = JSON.stringify(storageData, null, 2);
@@ -98,17 +98,17 @@ export const DataView: React.FC = () => {
             Size: {new Blob([JSON.stringify(storageData)]).size} bytes
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {isImporting ? (
             <>
-              <button 
+              <button
                 onClick={() => setIsImporting(false)}
                 className="px-3 py-1 text-[9px] font-black text-zinc-500 hover:text-zinc-700"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleImport}
                 className="px-3 py-1 bg-zinc-700 text-zinc-100 text-[9px] font-black border border-zinc-800 shadow-sm active:bg-zinc-800 active:shadow-none transition-all"
               >
@@ -117,7 +117,7 @@ export const DataView: React.FC = () => {
             </>
           ) : (
             <>
-              <button 
+              <button
                 onClick={handleCopy}
                 disabled={isCopying}
                 className={`px-3 py-1 text-[9px] font-black border transition-all ${
@@ -128,13 +128,13 @@ export const DataView: React.FC = () => {
               >
                 {isCopying ? "Copied" : "Copy data"}
               </button>
-              <button 
+              <button
                 onClick={handleExport}
                 className="px-3 py-1 bg-zinc-200 text-zinc-600 text-[9px] font-black border border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400 transition-all"
               >
                 Export data
               </button>
-              <button 
+              <button
                 onClick={() => setIsImporting(true)}
                 className="px-3 py-1 bg-zinc-200 text-zinc-600 text-[9px] font-black border border-zinc-300 hover:bg-zinc-300 active:bg-zinc-400 transition-all"
               >
@@ -156,9 +156,7 @@ export const DataView: React.FC = () => {
           />
         ) : (
           <div className="h-full overflow-auto p-6 font-mono text-[11px] leading-relaxed text-zinc-700 bg-zinc-50/50">
-            <pre className="whitespace-pre-wrap">
-              {JSON.stringify(storageData, null, 2)}
-            </pre>
+            <pre className="whitespace-pre-wrap">{JSON.stringify(storageData, null, 2)}</pre>
           </div>
         )}
       </div>

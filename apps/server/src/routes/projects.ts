@@ -120,8 +120,10 @@ projects.post("/write-file", async (c) => {
 
 projects.post("/move-bulk", async (c) => {
   const { paths, targetParent, includeFiles = [], mode = "move" } = await c.req.json();
-  console.log(`Request: /api/move-bulk (Mode: ${mode}, Items: ${paths.length}, Target: ${targetParent})`);
-  
+  console.log(
+    `Request: /api/move-bulk (Mode: ${mode}, Items: ${paths.length}, Target: ${targetParent})`,
+  );
+
   // validation: targetParent is required, but it doesn't have to exist yet (e.g. for grouping)
   if (!Array.isArray(paths) || !targetParent) {
     console.error("[Move] Invalid parameters: paths must be array and targetParent is required");
@@ -254,13 +256,9 @@ projects.post("/watch", async (c) => {
 projects.post("/watch-bulk", async (c) => {
   const { paths } = await c.req.json();
   console.log(`Request: /api/watch-bulk (Items: ${paths.length})`);
-  if (!Array.isArray(paths))
-    return c.json({ error: "Paths must be an array" }, 400);
+  if (!Array.isArray(paths)) return c.json({ error: "Paths must be an array" }, 400);
 
-  const results: Record<
-    string,
-    { branch: string; diffCount: number; latestCommit: string }
-  > = {};
+  const results: Record<string, { branch: string; diffCount: number; latestCommit: string }> = {};
   for (const path of paths) {
     if (path && existsSync(path)) {
       startWatching(path, false); // Don't broadcast for each folder
@@ -274,13 +272,9 @@ projects.post("/watch-bulk", async (c) => {
 projects.post("/git-info", async (c) => {
   const { paths } = await c.req.json();
   console.log(`Request: /api/git-info (Items: ${paths.length})`);
-  if (!Array.isArray(paths))
-    return c.json({ error: "Paths must be an array" }, 400);
+  if (!Array.isArray(paths)) return c.json({ error: "Paths must be an array" }, 400);
 
-  const results: Record<
-    string,
-    { branch: string; diffCount: number; latestCommit: string }
-  > = {};
+  const results: Record<string, { branch: string; diffCount: number; latestCommit: string }> = {};
   for (const path of paths) {
     if (path && existsSync(path)) {
       results[path] = getGitInfo(path);

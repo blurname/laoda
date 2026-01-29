@@ -1,25 +1,26 @@
 {
   "name": "laoda",
   "version": "0.0.2",
+  "type": "module",
   "bin": {
     "laoda": "dist/index.js"
   },
+  "workspaces": [
+    "apps/*"
+  ],
   "files": [
     "dist",
     "README.md"
   ],
-  "workspaces": [
-    "apps/*"
-  ],
   "scripts": {
     "version-bump": "cox root-version-bump",
     "tag-push": "cox tag-push",
-    "dev": "bun --filter \"*\" dev",
-    "dev:web": "bun --cwd apps/web dev",
-    "dev:server": "bun --cwd apps/server dev",
-    "build": "bun run build:web && bun run build:server && bun run build:finalize",
-    "build:web": "bun --cwd apps/web build",
-    "build:server": "mkdir -p dist && bun build ./apps/server/index.ts --target node --outfile dist/index.js --external @hono/node-server --external ws --external chokidar",
+    "dev": "pnpm -r dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:server": "pnpm --filter server dev",
+    "build": "pnpm run build:web && pnpm run build:server && pnpm run build:finalize",
+    "build:web": "pnpm --filter web build",
+    "build:server": "mkdir -p dist && esbuild ./apps/server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/index.js --external:@hono/node-server --external:ws --external:chokidar --banner:js=\"#!/usr/bin/env node\"",
     "build:finalize": "mkdir -p dist/dist-web && cp -r apps/web/dist/* dist/dist-web/",
     "start": "NODE_ENV=production node dist/index.js",
     "lint": "oxlint -c .oxlintrc.json",
@@ -32,9 +33,11 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "coxswain": "1.0.11",
+    "esbuild": "^0.24.0",
     "oxfmt": "^0.26.0",
     "oxlint": "latest",
-    "typescript": "^5.0.0",
-    "coxswain": "1.0.11"
+    "tsx": "^4.19.2",
+    "typescript": "^5.0.0"
   }
 }

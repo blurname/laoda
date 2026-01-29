@@ -52,7 +52,9 @@ export const api = {
     return res.json();
   },
 
-  async getGitInfo(paths: string[]): Promise<Record<string, { branch: string; diffCount: number; latestCommit: string }>> {
+  async getGitInfo(
+    paths: string[],
+  ): Promise<Record<string, { branch: string; diffCount: number; latestCommit: string }>> {
     const res = await fetch(`${API_BASE}/api/git-info`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -78,16 +80,19 @@ export const api = {
       const timeout = setTimeout(() => {
         reject(new Error("Duplication timeout: No response from server"));
       }, 30000); // 30秒超时
-      
-      registerResolver("DUPLICATION_COMPLETE", (data: ServerMessagePayload<"DUPLICATION_COMPLETE">) => {
-        if (data.path === path) {
-          clearTimeout(timeout);
-          if (data.success) resolve(data.newPath!);
-          else reject(new Error(data.error || "Duplication failed"));
-          return true;
-        }
-        return false;
-      });
+
+      registerResolver(
+        "DUPLICATION_COMPLETE",
+        (data: ServerMessagePayload<"DUPLICATION_COMPLETE">) => {
+          if (data.path === path) {
+            clearTimeout(timeout);
+            if (data.success) resolve(data.newPath!);
+            else reject(new Error(data.error || "Duplication failed"));
+            return true;
+          }
+          return false;
+        },
+      );
 
       try {
         const res = await fetch(`${API_BASE}/api/duplicate`, {
@@ -106,7 +111,12 @@ export const api = {
     });
   },
 
-  async moveBulk(paths: string[], targetParent: string, includeFiles: string[] = [], mode: "move" | "copy" = "move"): Promise<MoveResult[]> {
+  async moveBulk(
+    paths: string[],
+    targetParent: string,
+    includeFiles: string[] = [],
+    mode: "move" | "copy" = "move",
+  ): Promise<MoveResult[]> {
     return new Promise(async (resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("Move operation timeout"));
@@ -152,7 +162,7 @@ export const api = {
       const timeout = setTimeout(() => {
         reject(new Error("Deletion timeout: No response from server"));
       }, 30000); // 30秒超时
-      
+
       registerResolver("DELETION_COMPLETE", (data: ServerMessagePayload<"DELETION_COMPLETE">) => {
         if (data.path === path) {
           clearTimeout(timeout);
@@ -182,5 +192,5 @@ export const api = {
 
   getWsUrl() {
     return `${API_BASE.replace("http", "ws")}/ws`;
-  }
+  },
 };

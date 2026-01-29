@@ -52,19 +52,22 @@ export interface LaodaStorage {
   "current-view": ViewType;
   "managed-files": ManagedFile[];
   "sort-by": SortType;
-  "settings": Settings;
+  settings: Settings;
 }
 
 export const nodesAtom = atomWithStorage<RegistryNode[]>("imported-folders", []);
 
-export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide-config"]>("selected-ide-config", {
-  type: "preset",
-  value: "Cursor"
-});
+export const selectedIDEAtom = atomWithStorage<LaodaStorage["selected-ide-config"]>(
+  "selected-ide-config",
+  {
+    type: "preset",
+    value: "Cursor",
+  },
+);
 
 export const settingsAtom = atomWithStorage<LaodaStorage["settings"]>("settings", {
   copyIncludeFiles: [".env.local"],
-  operationMode: "move"
+  operationMode: "move",
 });
 
 export const viewAtom = atomWithStorage<LaodaStorage["current-view"]>(
@@ -77,7 +80,7 @@ export const viewAtom = atomWithStorage<LaodaStorage["current-view"]>(
     } catch {
       return "list";
     }
-  })()
+  })(),
 );
 
 export const managedFilesAtom = atomWithStorage<LaodaStorage["managed-files"]>("managed-files", []);

@@ -6,7 +6,7 @@ export const StatusPrefix = {
   IMPORTING: "Importing",
 } as const;
 
-export type StatusPrefixType = typeof StatusPrefix[keyof typeof StatusPrefix];
+export type StatusPrefixType = (typeof StatusPrefix)[keyof typeof StatusPrefix];
 
 export const formatStatusName = (prefix: string, name: string) => `${prefix}: ${name}`;
 

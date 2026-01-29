@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -33,8 +32,7 @@ Options:
   process.exit(0);
 }
 
-const portArgIdx =
-  args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
+const portArgIdx = args.indexOf("--port") !== -1 ? args.indexOf("--port") : args.indexOf("-p");
 if (portArgIdx !== -1) {
   const nextArg = args[portArgIdx + 1];
   if (nextArg) {

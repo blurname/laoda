@@ -5,8 +5,7 @@ import { existsSync, readFileSync } from "fs";
 export function getGitInfo(path: string) {
   try {
     const headPath = join(path, ".git", "HEAD");
-    if (!existsSync(headPath))
-      return { branch: "no branch", diffCount: 0, latestCommit: "" };
+    if (!existsSync(headPath)) return { branch: "no branch", diffCount: 0, latestCommit: "" };
 
     // Get Branch
     let branch = "unknown";
@@ -23,9 +22,7 @@ export function getGitInfo(path: string) {
       const status = execSync("git status --porcelain", {
         cwd: path,
       }).toString();
-      diffCount = status
-        .split("\n")
-        .filter((line) => line.trim().length > 0).length;
+      diffCount = status.split("\n").filter((line) => line.trim().length > 0).length;
     } catch {
       // ignore
     }
@@ -33,9 +30,7 @@ export function getGitInfo(path: string) {
     // Get Latest Commit Info
     let latestCommit = "";
     try {
-      latestCommit = execSync('git log -1 --format="%s (%h)"', { cwd: path })
-        .toString()
-        .trim();
+      latestCommit = execSync('git log -1 --format="%s (%h)"', { cwd: path }).toString().trim();
     } catch {
       // ignore
     }

@@ -17,27 +17,29 @@ function App() {
 
   // Cleanup: strip any optimistic status prefixes and trailing slashes from node names/paths on mount
   useEffect(() => {
-    setNodes((prev) => prev.map(node => {
-      if (node.type === "leaf") {
-        return { 
-          ...node, 
-          path: normalizePath(node.path),
-          name: stripStatusPrefix(node.name) 
-        };
-      } else {
-        // Migrate old group nodes that missing 'path' field
-        const path = node.path || decodeNodeId(node.id);
-        return {
-          ...node,
-          path: normalizePath(path),
-          children: node.children.map(leaf => ({
-            ...leaf,
-            path: normalizePath(leaf.path),
-            name: stripStatusPrefix(leaf.name)
-          }))
-        };
-      }
-    }));
+    setNodes((prev) =>
+      prev.map((node) => {
+        if (node.type === "leaf") {
+          return {
+            ...node,
+            path: normalizePath(node.path),
+            name: stripStatusPrefix(node.name),
+          };
+        } else {
+          // Migrate old group nodes that missing 'path' field
+          const path = node.path || decodeNodeId(node.id);
+          return {
+            ...node,
+            path: normalizePath(path),
+            children: node.children.map((leaf) => ({
+              ...leaf,
+              path: normalizePath(leaf.path),
+              name: stripStatusPrefix(leaf.name),
+            })),
+          };
+        }
+      }),
+    );
   }, [setNodes]);
 
   return (

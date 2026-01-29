@@ -18,10 +18,10 @@ export class MacOSAdapter implements OSAdapter {
     try {
       // 使用 execSync 同步执行，因为这是一个独立的背景任务进程，且 osascript 执行很快
       const outputRaw = execSync(
-        'osascript -e \'POSIX path of (choose folder with prompt "Select a folder")\'',
-        { encoding: "utf8" }
+        "osascript -e 'POSIX path of (choose folder with prompt \"Select a folder\")'",
+        { encoding: "utf8" },
       ).trim();
-      
+
       const trimmedOutput = outputRaw.trim();
       console.log(`Picker returned path: ${trimmedOutput || "none"}`);
       return trimmedOutput || null;

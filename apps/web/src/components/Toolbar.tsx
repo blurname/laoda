@@ -97,9 +97,7 @@ export const Toolbar = () => {
               if (n.type === "group")
                 return {
                   ...n,
-                  children: n.children.filter(
-                    (c) => normalizePath(c.path) !== path,
-                  ),
+                  children: n.children.filter((c) => normalizePath(c.path) !== path),
                 };
               return n;
             })
@@ -110,26 +108,17 @@ export const Toolbar = () => {
 
       setToasts((prev: ToastInfo[]) =>
         prev.map((t) =>
-          t.id === toastId
-            ? { ...t, message: "Import success", type: "success" }
-            : t,
+          t.id === toastId ? { ...t, message: "Import success", type: "success" } : t,
         ),
       );
     } catch (err) {
       console.error("Import failed:", err);
       setToasts((prev: ToastInfo[]) =>
-        prev.map((t) =>
-          t.id === toastId
-            ? { ...t, message: "Import failed", type: "error" }
-            : t,
-        ),
+        prev.map((t) => (t.id === toastId ? { ...t, message: "Import failed", type: "error" } : t)),
       );
     } finally {
       setTimeout(
-        () =>
-          setToasts((prev: ToastInfo[]) =>
-            prev.filter((t) => t.id !== toastId),
-          ),
+        () => setToasts((prev: ToastInfo[]) => prev.filter((t) => t.id !== toastId)),
         2000,
       );
       pickingLock.current = false;
@@ -183,9 +172,7 @@ export const Toolbar = () => {
             <input
               type="text"
               value={ideConfig.value}
-              onChange={(e) =>
-                setIdeConfig({ type: "custom", value: e.target.value })
-              }
+              onChange={(e) => setIdeConfig({ type: "custom", value: e.target.value })}
               placeholder="vscode family"
               className="bg-transparent px-4 py-1.5 text-[10px] font-bold text-zinc-700 focus:outline-none w-36 placeholder:text-zinc-400 border-l border-zinc-200"
             />
