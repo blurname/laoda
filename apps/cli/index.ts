@@ -10,9 +10,7 @@ import {
   renderHelp,
   renderDone,
   renderError,
-  renderSessions,
 } from "./src/render.ts";
-import { listSessions, killSession } from "./src/zellij.ts";
 import { runBrain } from "./src/brain.ts";
 
 export async function runCli(args: string[]): Promise<void> {
@@ -43,12 +41,6 @@ export async function runCli(args: string[]): Promise<void> {
       return;
     case "open":
       await cmdOpen(args.slice(1));
-      return;
-    case "status":
-      renderSessions(listSessions());
-      return;
-    case "kill":
-      cmdKill(args.slice(1));
       return;
     case "-h":
     case "--help":
@@ -158,16 +150,3 @@ async function cmdOpen(args: string[]): Promise<void> {
   }
 }
 
-function cmdKill(args: string[]): void {
-  const name = args[0];
-  if (!name) {
-    renderError("Usage: laoda kill <session>");
-    return;
-  }
-  try {
-    killSession(name);
-    renderDone(`Killed session: ${name}`);
-  } catch (e: any) {
-    renderError(`Failed to kill session: ${e.message}`);
-  }
-}

@@ -61,9 +61,7 @@ export function renderHelp(): void {
   console.log(`${c.bold}  LAODA${c.reset} ${c.dim}v2 - brain + project manager${c.reset}`);
   console.log();
   console.log(`${c.bold}  Brain (default):${c.reset}`);
-  console.log(`    laoda "task description"   Run task in Claude Code via Zellij`);
-  console.log(`    laoda status               List active Zellij sessions`);
-  console.log(`    laoda kill <session>        Kill a Zellij session`);
+  console.log(`    laoda "task description"   Spawn a Zellij pane running Claude Code`);
   console.log();
   console.log(`${c.bold}  Projects:${c.reset}`);
   console.log(`    laoda ls                   List projects with git status`);
@@ -96,23 +94,3 @@ export function renderTaskStart(task: string): void {
   console.log();
 }
 
-export function renderSessionInfo(sessionName: string): void {
-  console.log(`  ${c.green}✓${c.reset} Zellij session ${c.bold}${sessionName}${c.reset} created`);
-  console.log();
-  console.log(`  ${c.cyan}→${c.reset} Attach: ${c.bold}zellij attach ${sessionName}${c.reset}`);
-  console.log();
-}
-
-export function renderSessions(sessions: string[]): void {
-  if (sessions.length === 0) {
-    console.log(`  ${c.dim}No active laoda sessions.${c.reset}`);
-    return;
-  }
-  console.log();
-  console.log(`${c.bold}  Active sessions:${c.reset}`);
-  console.log();
-  for (const s of sessions) {
-    console.log(`    ${c.cyan}●${c.reset} ${s}`);
-  }
-  console.log();
-}
