@@ -8,7 +8,7 @@ import {
   symlinkSync,
 } from "fs";
 import { join, basename } from "path";
-import { execSync } from "child_process";
+import { execSync, spawnSync } from "child_process";
 
 /**
  * Robustly copy a folder, preserving .git, symlinks, and git config.
@@ -102,7 +102,23 @@ export function copyFolder(src: string, dest: string, includeFiles: string[] = [
   if (localEmail) {
     execSync(`git config --local user.email "${localEmail}"`, { cwd: dest });
   }
+  // 7. Install dependencies
+  installDeps(dest);
+
   console.log(`[copy] done -> ${dest}`);
+}
+
+function installDeps(dir: string): void {
+  console.log(`[copy] installing dependencies...`);
+  if (existsSync(join(dir, "pnpm-lock.yaml"))) {
+    spawnSync("pnpm", ["i"], { cwd: dir, stdio: "inherit" });
+  } else if (existsSync(join(dir, "bun.lock"))) {
+    execSync("bun i", { cwd: dir, stdio: "inherit" });
+  } else if (existsSync(join(dir, "yarn.lock"))) {
+    spawnSync("yarn", { cwd: dir, stdio: "inherit" });
+  } else if (existsSync(join(dir, "package.json"))) {
+    execSync("npm i", { cwd: dir, stdio: "inherit" });
+  }
 }
 
 /**
