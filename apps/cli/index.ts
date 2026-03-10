@@ -14,7 +14,7 @@ function findEnvFiles(dir: string): string[] {
     });
     return output
       .split("\0")
-      .filter((f) => f && /(?:^|\/)\.env/.test(f));
+      .filter((f) => f && /(?:^|\/)\.env\.local$/.test(f));
   } catch {
     return [];
   }
