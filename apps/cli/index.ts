@@ -1,6 +1,6 @@
 import { createInterface } from "readline";
 import { spawnTab } from "./src/zellij.ts";
-import { duplicateFolder } from "../capability/copy.ts";
+import { duplicateFolder } from "@laoda/capability";
 
 const c = {
   reset: "\x1b[0m",

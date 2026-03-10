@@ -44,6 +44,9 @@ importers:
 
   apps/cli:
     dependencies:
+      '@laoda/capability':
+        specifier: workspace:*
+        version: link:../capability
       '@laoda/shared':
         specifier: workspace:*
         version: link:../shared
