@@ -37,14 +37,15 @@ export function findReusableFolder(cwd: string): string | null {
     return null;
   }
 
-  // Find sibling folders matching baseName-N pattern
+  // Find sibling folders matching baseName or baseName-N pattern
   const candidates = siblings
     .filter((name) => {
+      if (name === baseName) return true;
       const m = name.match(/^(.*?)-(\d+)$/);
       return m && m[1] === baseName;
     })
     .map((name) => join(parentDir, name))
-    .filter((p) => p !== cwd && existsSync(join(p, ".git")));
+    .filter((p) => existsSync(join(p, ".git")));
 
   for (const candidate of candidates) {
     if (isGitClean(candidate)) {
