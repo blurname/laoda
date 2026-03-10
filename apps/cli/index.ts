@@ -1,5 +1,6 @@
 import { createInterface } from "readline";
 import { spawnTab } from "./src/zellij.ts";
+import { duplicateFolder } from "../capability/copy.ts";
 
 const c = {
   reset: "\x1b[0m",
@@ -26,8 +27,12 @@ export function runCli(): void {
       return;
     }
     try {
-      spawnTab(trimmed.slice(0, 40), trimmed, process.cwd());
-      console.log(`  ${c.green}✓${c.reset} Pane created`);
+      const cwd = process.cwd();
+      console.log(`  ${c.cyan}⟳${c.reset} Duplicating ${cwd}...`);
+      const newPath = duplicateFolder(cwd);
+      console.log(`  ${c.green}✓${c.reset} ${newPath}`);
+      spawnTab(trimmed.slice(0, 40), trimmed, newPath);
+      console.log(`  ${c.green}✓${c.reset} Tab created`);
     } catch (e: any) {
       console.log(`  ${c.red}✗${c.reset} ${e.message}`);
     }
