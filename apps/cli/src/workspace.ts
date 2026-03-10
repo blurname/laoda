@@ -44,7 +44,7 @@ export function findReusableFolder(cwd: string): string | null {
       return m && m[1] === baseName;
     })
     .map((name) => join(parentDir, name))
-    .filter((p) => existsSync(join(p, ".git")));
+    .filter((p) => p !== cwd && existsSync(join(p, ".git")));
 
   for (const candidate of candidates) {
     if (isGitClean(candidate)) {
