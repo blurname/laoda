@@ -1,5 +1,5 @@
 import { createInterface } from "readline";
-import { spawnPane } from "./src/zellij.ts";
+import { spawnTab } from "./src/zellij.ts";
 
 const c = {
   reset: "\x1b[0m",
@@ -26,7 +26,7 @@ export function runCli(): void {
       return;
     }
     try {
-      spawnPane(trimmed.slice(0, 40), trimmed, process.cwd());
+      spawnTab(trimmed.slice(0, 40), trimmed, process.cwd());
       console.log(`  ${c.green}✓${c.reset} Pane created`);
     } catch (e: any) {
       console.log(`  ${c.red}✗${c.reset} ${e.message}`);
