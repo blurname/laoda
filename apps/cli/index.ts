@@ -11,9 +11,7 @@ import {
   renderDone,
   renderError,
   renderSessions,
-  renderConfigValue,
 } from "./src/render.ts";
-import { setConfigValue, getConfigValue } from "./src/config.ts";
 import { listSessions, killSession } from "./src/zellij.ts";
 import { runBrain } from "./src/brain.ts";
 
@@ -22,7 +20,7 @@ export async function runCli(args: string[]): Promise<void> {
 
   // No args → list projects (backward compat)
   if (!command) {
-    listProjects();
+    listProjectsView();
     return;
   }
 
@@ -30,7 +28,7 @@ export async function runCli(args: string[]): Promise<void> {
   switch (command) {
     case "ls":
     case "list":
-      listProjects();
+      listProjectsView();
       return;
     case "add":
       cmdAdd(args.slice(1));
@@ -45,9 +43,6 @@ export async function runCli(args: string[]): Promise<void> {
       return;
     case "open":
       await cmdOpen(args.slice(1));
-      return;
-    case "config":
-      cmdConfig(args.slice(1));
       return;
     case "status":
       renderSessions(listSessions());
@@ -65,13 +60,13 @@ export async function runCli(args: string[]): Promise<void> {
   // Default: treat all args as a task for brain
   const task = args.join(" ");
   try {
-    await runBrain(task, process.cwd());
+    runBrain(task, process.cwd());
   } catch (e: any) {
     renderError(e.message);
   }
 }
 
-function listProjects(): void {
+function listProjectsView(): void {
   const projects = getProjects();
 
   renderHeader();
@@ -161,37 +156,6 @@ async function cmdOpen(args: string[]): Promise<void> {
   } catch (e: any) {
     renderError(`Failed to open: ${e.message}`);
   }
-}
-
-function cmdConfig(args: string[]): void {
-  const action = args[0];
-
-  if (!action || action === "get") {
-    const key = args[1];
-    if (!key) {
-      // Show all LLM config
-      for (const k of ["llm.provider", "llm.apiKey", "llm.model", "llm.baseUrl"]) {
-        renderConfigValue(k, getConfigValue(k));
-      }
-      return;
-    }
-    renderConfigValue(key, getConfigValue(key));
-    return;
-  }
-
-  if (action === "set") {
-    const key = args[1];
-    const value = args[2];
-    if (!key || !value) {
-      renderError("Usage: laoda config set <key> <value>");
-      return;
-    }
-    setConfigValue(key, value);
-    renderDone(`${key} = ${value}`);
-    return;
-  }
-
-  renderError("Usage: laoda config [get <key> | set <key> <value>]");
 }
 
 function cmdKill(args: string[]): void {

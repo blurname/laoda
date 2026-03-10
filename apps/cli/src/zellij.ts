@@ -1,29 +1,27 @@
 import { execSync, execFileSync } from "child_process";
-import type { SubTask } from "./types.ts";
 
 function exec(cmd: string): string {
   return execSync(cmd, { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
 }
 
 export function createSession(name: string): void {
-  // Create session in detached mode
   execSync(`zellij --session ${name} options --detach-on-session-close false`, {
     stdio: "ignore",
     env: { ...process.env, ZELLIJ_AUTO_ATTACH: "false" },
   });
 }
 
-export function spawnPane(session: string, subtask: SubTask): void {
+export function spawnPane(session: string, title: string, prompt: string, cwd?: string): void {
   const args = [
     "--session",
     session,
     "run",
     "-n",
-    subtask.title,
-    ...(subtask.cwd ? ["--cwd", subtask.cwd] : []),
+    title,
+    ...(cwd ? ["--cwd", cwd] : []),
     "--",
     "claude",
-    subtask.prompt,
+    prompt,
   ];
   execFileSync("zellij", args, { stdio: "ignore" });
 }

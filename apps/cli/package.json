@@ -7,8 +7,7 @@
     "dev": "tsx watch index.ts"
   },
   "dependencies": {
-    "@laoda/shared": "workspace:*",
-    "openai": "^4.0.0"
+    "@laoda/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"
