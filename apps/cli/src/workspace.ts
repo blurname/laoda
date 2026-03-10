@@ -19,18 +19,22 @@ function isGitClean(dir: string): boolean {
 }
 
 /**
- * Check if any claude process is running with cwd inside the given directory
+ * Check if any claude process has open files in the given directory
  */
 function hasClaudeProcess(dir: string): boolean {
   try {
-    const output = execSync("ps aux", { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+    const output = execSync(`lsof +D ${dir}`, {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     for (const line of output.split("\n")) {
-      if (line.includes("claude") && line.includes(dir)) {
+      if (line.includes("claude")) {
         return true;
       }
     }
     return false;
   } catch {
+    // lsof exits with 1 when no files found
     return false;
   }
 }
