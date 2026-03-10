@@ -6,7 +6,6 @@ import { duplicateFolder } from "@laoda/capability";
 
 function findEnvFiles(dir: string): string[] {
   try {
-    // Find all .env* files that are gitignored (including in subdirectories)
     const output = execSync("git ls-files -z --others --ignored --exclude-standard", {
       cwd: dir,
       encoding: "utf-8",
@@ -18,6 +17,27 @@ function findEnvFiles(dir: string): string[] {
   } catch {
     return [];
   }
+}
+
+function getMainBranch(dir: string): string {
+  try {
+    const output = execSync("git remote show origin | grep 'HEAD branch'", {
+      cwd: dir,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return output.trim().replace("HEAD branch:", "").trim();
+  } catch {
+    return "main";
+  }
+}
+
+function prepareGitBranch(dir: string, branchName: string): void {
+  const main = getMainBranch(dir);
+  execSync(`git fetch origin ${main}`, { cwd: dir, stdio: "pipe" });
+  execSync(`git checkout ${main}`, { cwd: dir, stdio: "pipe" });
+  execSync(`git reset --hard origin/${main}`, { cwd: dir, stdio: "pipe" });
+  execSync(`git checkout -b ${branchName}`, { cwd: dir, stdio: "pipe" });
 }
 
 const c = {
@@ -38,25 +58,48 @@ export function runCli(): void {
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const cwd = process.cwd();
+  let userName = "";
 
-  // Ctrl+C just clears current line, don't exit
   rl.on("SIGINT", () => {
-    // write empty line and re-prompt
     process.stdout.write("\n");
   });
 
-  // Ctrl+D (EOF) exits
   rl.on("close", () => {
     console.log();
     process.exit(0);
   });
 
-  function prompt(): void {
+  function askName(): void {
+    console.log();
+    rl.question(`  ${c.cyan}?${c.reset} Your name (for branch prefix): `, (name) => {
+      const trimmed = name.trim();
+      if (!trimmed) {
+        askName();
+        return;
+      }
+      userName = trimmed;
+      promptTask();
+    });
+  }
+
+  function generateBranchName(): string {
+    const now = new Date();
+    const ts = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+      String(now.getHours()).padStart(2, "0"),
+      String(now.getMinutes()).padStart(2, "0"),
+    ].join("");
+    return `${userName}/${ts}`;
+  }
+
+  function promptTask(): void {
     console.log();
     rl.question(`  ${c.cyan}?${c.reset} Enter task: `, (task) => {
       const trimmed = task.trim();
       if (!trimmed) {
-        prompt();
+        promptTask();
         return;
       }
 
@@ -73,15 +116,20 @@ export function runCli(): void {
           console.log(`  ${c.green}✓${c.reset} ${targetDir}`);
         }
 
+        const branch = generateBranchName();
+        console.log(`  ${c.cyan}⟳${c.reset} Preparing branch ${c.bold}${branch}${c.reset}...`);
+        prepareGitBranch(targetDir, branch);
+        console.log(`  ${c.green}✓${c.reset} On branch ${branch}`);
+
         spawnTab(trimmed.slice(0, 40), trimmed, targetDir);
         console.log(`  ${c.green}✓${c.reset} Tab created`);
       } catch (e: any) {
         console.log(`  ${c.red}✗${c.reset} ${e.message}`);
       }
 
-      prompt();
+      promptTask();
     });
   }
 
-  prompt();
+  askName();
 }
