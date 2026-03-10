@@ -17,26 +17,24 @@ export function runCli(): void {
   console.log();
   console.log(`${c.bold}  LAODA${c.reset} ${c.dim}brain${c.reset}`);
   console.log(`${c.dim}  ${"─".repeat(50)}${c.reset}`);
-  console.log(`  ${c.dim}Press Ctrl+C twice to exit${c.reset}`);
+  console.log(`  ${c.dim}Ctrl+D to exit${c.reset}`);
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const cwd = process.cwd();
-  let sigintCount = 0;
 
+  // Ctrl+C just clears current line, don't exit
   rl.on("SIGINT", () => {
-    sigintCount++;
-    if (sigintCount >= 2) {
-      console.log();
-      rl.close();
-      process.exit(0);
-    }
+    // write empty line and re-prompt
+    process.stdout.write("\n");
+  });
+
+  // Ctrl+D (EOF) exits
+  rl.on("close", () => {
     console.log();
-    console.log(`  ${c.dim}Press Ctrl+C again to exit${c.reset}`);
-    prompt();
+    process.exit(0);
   });
 
   function prompt(): void {
-    sigintCount = 0;
     console.log();
     rl.question(`  ${c.cyan}?${c.reset} Enter task: `, (task) => {
       const trimmed = task.trim();
