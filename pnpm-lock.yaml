@@ -40,6 +40,19 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  apps/cli:
+    dependencies:
+      '@laoda/shared':
+        specifier: workspace:*
+        version: link:../shared
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.7
+
   apps/server:
     dependencies:
       '@hono/node-server':

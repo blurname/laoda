@@ -4,20 +4,27 @@
 
 ## 1. 核心架构 (Core Architecture)
 
-- 权威源: 前端 `localStorage` 为数据唯一真理；后端仅作 Git 数据增强。
-- 数据规范: 必须维护 `LaodaStorage` 强类型接口，所有持久化状态需映射至对应的 `localStorage` 键值。
-- 通信: WebSocket 实时推送；具备自动重连与路径同步机制。
+- 双模式: CLI (默认) 终端使用 | Web (`--web` 启动) 浏览器使用。
+- 数据存储: CLI 使用 `~/.laoda.json`；Web 使用前端 `localStorage`。
 - OS 适配: 抽象 OS 层，当前仅支持 macOS (osa脚本选择文件夹/open命令启动)。
-- 技术栈: pnpm + Hono (Server) | React + RSBuild + Jotai (Web)。
+- 技术栈: pnpm + esbuild (CLI) | Hono (Server) + React + RSBuild + Jotai (Web)。
+- 目录结构: `apps/cli` (终端) | `apps/web` (前端) | `apps/server` (后端) | `apps/shared` (共享类型)。
 
-### 数据流原则 (Data Flow Principles)
+### CLI 模式 (Default)
 
-- 前端权威源: 前端 `localStorage` 存储完整的文件夹信息（id, name, path），是数据的唯一真理源。
-- 后端增强: 后端不存储或发送完整文件夹对象，只验证路径存在性并提供 Git 信息增强（branch, diffCount, latestCommit）。
+- 入口: `laoda` 直接终端输出项目列表 + Git 状态。
+- 子命令: `add`, `rm`, `clear`, `open`, `list`。
+- 存储: `~/.laoda.json` 持久化项目路径。
+
+### Web 模式 (`--web`)
+
+- 入口: `laoda --web [-p port]` 启动 Hono 服务器 + 静态前端。
+- 权威源: 前端 `localStorage` 为数据唯一真理；后端仅作 Git 数据增强。
+- 通信: WebSocket 实时推送；具备自动重连与路径同步机制。
 - 主动请求: 前端连接时主动发送路径列表，后端返回对应的 Git 信息映射。
 - WebSocket 更新: 文件变化时，后端通过 `GIT_INFO_UPDATE` 消息推送单个路径的 Git 信息更新。
 
-### 乐观更新规则 (Optimistic Update Rules)
+### 乐观更新规则 (Web Optimistic Update Rules)
 
 - 立即响应: 所有异步操作（复制、删除、导入、移动）必须立即更新前端状态，无需等待后端响应。
 - 失败回滚: 操作失败时自动回滚到原始状态，确保数据一致性。

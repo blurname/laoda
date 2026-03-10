@@ -1,0 +1,6 @@
+{
+  "name": "@laoda/capability",
+  "version": "0.0.1",
+  "main": "copy.ts",
+  "types": "copy.ts"
+}

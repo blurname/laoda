@@ -6,7 +6,7 @@ import { notifyClients } from "../services/websocket";
 import type { ServerMessage } from "@laoda/shared";
 import { watchedPaths, watchers, startWatching } from "../services/watcher";
 import { getGitInfo } from "../utils/git";
-import { copyFolderRobustly } from "../utils/fs";
+import { copyFolder, duplicateFolder } from "../../../capability/copy.ts";
 
 const projects = new Hono();
 
@@ -165,7 +165,7 @@ projects.post("/move-bulk", async (c) => {
           }
         } else {
           console.log(`[Move] Copy move (selective) ${src} -> ${dest}`);
-          copyFolderRobustly(src, dest, includeFiles);
+          copyFolder(src, dest, includeFiles);
           // Cleanup original
           rmSync(src, { recursive: true, force: true });
         }
@@ -203,26 +203,7 @@ projects.post("/duplicate", async (c) => {
   // Run in background
   (async () => {
     try {
-      const parentDir = join(path, "..");
-      const fullName = basename(path);
-
-      // Check if name already ends with "-number"
-      const match = fullName.match(/^(.*?)-(\d+)$/);
-      const baseName = match ? match[1] || fullName : fullName;
-      let counter = match ? parseInt(match[2] || "0") + 1 : 1;
-
-      let newPath = "";
-      while (true) {
-        const newName = `${baseName}-${counter}`;
-        newPath = join(parentDir, newName);
-        if (!existsSync(newPath)) break;
-        counter++;
-      }
-
-      console.log(`[Duplicate] Starting: ${path} -> ${newPath}`);
-      copyFolderRobustly(path, newPath, includeFiles);
-
-      console.log(`[Duplicate] Successfully duplicated: ${newPath}`);
+      const newPath = duplicateFolder(path, includeFiles);
       notifyClients({
         type: "DUPLICATION_COMPLETE",
         path,
