@@ -12,5 +12,5 @@ if (args.includes("--web")) {
   renderHelp();
 } else {
   const { runCli } = await import("./apps/cli/index.ts");
-  runCli(args);
+  await runCli(args);
 }

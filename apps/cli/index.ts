@@ -10,39 +10,65 @@ import {
   renderHelp,
   renderDone,
   renderError,
+  renderSessions,
+  renderConfigValue,
 } from "./src/render.ts";
+import { setConfigValue, getConfigValue } from "./src/config.ts";
+import { listSessions, killSession } from "./src/zellij.ts";
+import { runBrain } from "./src/brain.ts";
 
-export function runCli(args: string[]): void {
+export async function runCli(args: string[]): Promise<void> {
   const command = args[0];
 
-  if (!command || command === "ls" || command === "list") {
+  // No args → list projects (backward compat)
+  if (!command) {
     listProjects();
     return;
   }
 
-  if (command === "add") {
-    cmdAdd(args.slice(1));
-    return;
+  // Known subcommands
+  switch (command) {
+    case "ls":
+    case "list":
+      listProjects();
+      return;
+    case "add":
+      cmdAdd(args.slice(1));
+      return;
+    case "rm":
+    case "remove":
+      cmdRemove(args.slice(1));
+      return;
+    case "clear":
+      clearProjects();
+      renderDone("All projects removed.");
+      return;
+    case "open":
+      await cmdOpen(args.slice(1));
+      return;
+    case "config":
+      cmdConfig(args.slice(1));
+      return;
+    case "status":
+      renderSessions(listSessions());
+      return;
+    case "kill":
+      cmdKill(args.slice(1));
+      return;
+    case "-h":
+    case "--help":
+    case "help":
+      renderHelp();
+      return;
   }
 
-  if (command === "rm" || command === "remove") {
-    cmdRemove(args.slice(1));
-    return;
+  // Default: treat all args as a task for brain
+  const task = args.join(" ");
+  try {
+    await runBrain(task, process.cwd());
+  } catch (e: any) {
+    renderError(e.message);
   }
-
-  if (command === "clear") {
-    clearProjects();
-    renderDone("All projects removed.");
-    return;
-  }
-
-  if (command === "open") {
-    cmdOpen(args.slice(1));
-    return;
-  }
-
-  // Unknown command, show help
-  renderHelp();
 }
 
 function listProjects(): void {
@@ -91,7 +117,6 @@ function cmdRemove(args: string[]): void {
     return;
   }
 
-  // Try as index first (1-based)
   const idx = parseInt(target);
   if (!isNaN(idx)) {
     const projects = getProjects();
@@ -105,7 +130,6 @@ function cmdRemove(args: string[]): void {
     return;
   }
 
-  // Try as path
   const fullPath = resolve(target);
   if (removeProject(fullPath)) {
     renderDone(`Removed: ${fullPath}`);
@@ -136,5 +160,50 @@ async function cmdOpen(args: string[]): Promise<void> {
     renderDone(`Opened ${p.name} in ${ide}`);
   } catch (e: any) {
     renderError(`Failed to open: ${e.message}`);
+  }
+}
+
+function cmdConfig(args: string[]): void {
+  const action = args[0];
+
+  if (!action || action === "get") {
+    const key = args[1];
+    if (!key) {
+      // Show all LLM config
+      for (const k of ["llm.provider", "llm.apiKey", "llm.model", "llm.baseUrl"]) {
+        renderConfigValue(k, getConfigValue(k));
+      }
+      return;
+    }
+    renderConfigValue(key, getConfigValue(key));
+    return;
+  }
+
+  if (action === "set") {
+    const key = args[1];
+    const value = args[2];
+    if (!key || !value) {
+      renderError("Usage: laoda config set <key> <value>");
+      return;
+    }
+    setConfigValue(key, value);
+    renderDone(`${key} = ${value}`);
+    return;
+  }
+
+  renderError("Usage: laoda config [get <key> | set <key> <value>]");
+}
+
+function cmdKill(args: string[]): void {
+  const name = args[0];
+  if (!name) {
+    renderError("Usage: laoda kill <session>");
+    return;
+  }
+  try {
+    killSession(name);
+    renderDone(`Killed session: ${name}`);
+  } catch (e: any) {
+    renderError(`Failed to kill session: ${e.message}`);
   }
 }
