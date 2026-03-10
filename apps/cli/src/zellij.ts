@@ -6,8 +6,16 @@ import { tmpdir } from "os";
 export function spawnTab(title: string, prompt: string, cwd?: string): void {
   const escapedPrompt = prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const layout = `layout {
-  pane command="bash" {
-    args "-ic" "claude \\"${escapedPrompt}\\""
+  default_tab_template {
+    children
+    pane size=1 borderless=true {
+      plugin location="zellij:tab-bar"
+    }
+  }
+  tab name="${title}" cwd="${cwd || process.cwd()}" {
+    pane command="bash" {
+      args "-ic" "claude \\"${escapedPrompt}\\""
+    }
   }
 }`;
 
@@ -15,12 +23,7 @@ export function spawnTab(title: string, prompt: string, cwd?: string): void {
   writeFileSync(layoutPath, layout, "utf-8");
 
   try {
-    const args = [
-      "action", "new-tab",
-      "-l", layoutPath,
-      "-n", title,
-      ...(cwd ? ["-c", cwd] : []),
-    ];
+    const args = ["action", "new-tab", "-l", layoutPath];
     execFileSync("zellij", args, { stdio: "pipe" });
   } finally {
     try { unlinkSync(layoutPath); } catch {}
