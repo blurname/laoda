@@ -21,12 +21,27 @@ export function runCli(): void {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const cwd = process.cwd();
 
+  function confirmExit(): void {
+    rl.question(`  ${c.yellow}?${c.reset} Exit? (y/N) `, (answer) => {
+      if (answer.trim().toLowerCase() === "y") {
+        rl.close();
+        process.exit(0);
+      }
+      prompt();
+    });
+  }
+
+  rl.on("SIGINT", () => {
+    console.log();
+    confirmExit();
+  });
+
   function prompt(): void {
     console.log();
     rl.question(`  ${c.cyan}?${c.reset} Enter task: `, (task) => {
       const trimmed = task.trim();
       if (!trimmed) {
-        prompt();
+        confirmExit();
         return;
       }
 
