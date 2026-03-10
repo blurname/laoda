@@ -17,36 +17,35 @@ export function runCli(): void {
   console.log();
   console.log(`${c.bold}  LAODA${c.reset} ${c.dim}brain${c.reset}`);
   console.log(`${c.dim}  ${"─".repeat(50)}${c.reset}`);
+  console.log(`  ${c.dim}Press Ctrl+C twice to exit${c.reset}`);
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const cwd = process.cwd();
-
-  function confirmExit(): void {
-    rl.question(`  ${c.yellow}?${c.reset} Exit? (y/N) `, (answer) => {
-      if (answer.trim().toLowerCase() === "y") {
-        rl.close();
-        process.exit(0);
-      }
-      prompt();
-    });
-  }
+  let sigintCount = 0;
 
   rl.on("SIGINT", () => {
+    sigintCount++;
+    if (sigintCount >= 2) {
+      console.log();
+      rl.close();
+      process.exit(0);
+    }
     console.log();
-    confirmExit();
+    console.log(`  ${c.dim}Press Ctrl+C again to exit${c.reset}`);
+    prompt();
   });
 
   function prompt(): void {
+    sigintCount = 0;
     console.log();
     rl.question(`  ${c.cyan}?${c.reset} Enter task: `, (task) => {
       const trimmed = task.trim();
       if (!trimmed) {
-        confirmExit();
+        prompt();
         return;
       }
 
       try {
-        // Find reusable or duplicate
         const reusable = findReusableFolder(cwd);
         let targetDir: string;
         if (reusable) {
