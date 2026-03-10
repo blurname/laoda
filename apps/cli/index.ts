@@ -1,7 +1,24 @@
 import { createInterface } from "readline";
+import { execSync } from "child_process";
 import { spawnTab } from "./src/zellij.ts";
 import { findReusableFolder } from "./src/workspace.ts";
 import { duplicateFolder } from "@laoda/capability";
+
+function findEnvFiles(dir: string): string[] {
+  try {
+    // Find all .env* files that are gitignored (including in subdirectories)
+    const output = execSync("git ls-files -z --others --ignored --exclude-standard", {
+      cwd: dir,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return output
+      .split("\0")
+      .filter((f) => f && /(?:^|\/)\.env/.test(f));
+  } catch {
+    return [];
+  }
+}
 
 const c = {
   reset: "\x1b[0m",
@@ -51,7 +68,8 @@ export function runCli(): void {
           console.log(`  ${c.yellow}↻${c.reset} Reusing ${c.bold}${reusable}${c.reset}`);
         } else {
           console.log(`  ${c.cyan}⟳${c.reset} Duplicating...`);
-          targetDir = duplicateFolder(cwd);
+          const envFiles = findEnvFiles(cwd);
+          targetDir = duplicateFolder(cwd, envFiles);
           console.log(`  ${c.green}✓${c.reset} ${targetDir}`);
         }
 
