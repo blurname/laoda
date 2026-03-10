@@ -7,10 +7,10 @@ export function spawnTab(title: string, prompt: string, cwd?: string): void {
   const escapedPrompt = prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const layout = `layout {
   default_tab_template {
-    children
     pane size=1 borderless=true {
       plugin location="zellij:tab-bar"
     }
+    children
   }
   tab name="${title}" cwd="${cwd || process.cwd()}" {
     pane command="bash" {
