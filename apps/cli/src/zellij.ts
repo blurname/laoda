@@ -5,8 +5,10 @@ import { tmpdir } from "os";
 
 export function spawnTab(title: string, prompt: string, cwd?: string): void {
   const escapedPrompt = prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const layout = `pane command="bash" {
-  args "-ic" "claude \\"${escapedPrompt}\\""
+  const layout = `layout {
+  pane command="bash" {
+    args "-ic" "claude \\"${escapedPrompt}\\""
+  }
 }`;
 
   const layoutPath = join(tmpdir(), `laoda-layout-${Date.now()}.kdl`);
@@ -19,7 +21,7 @@ export function spawnTab(title: string, prompt: string, cwd?: string): void {
       "-n", title,
       ...(cwd ? ["-c", cwd] : []),
     ];
-    execFileSync("zellij", args, { stdio: "ignore" });
+    execFileSync("zellij", args, { stdio: "pipe" });
   } finally {
     try { unlinkSync(layoutPath); } catch {}
   }
