@@ -3,6 +3,7 @@ import { execSync } from "child_process";
 import { spawnTab } from "./src/zellij.ts";
 import { findReusableFolder } from "./src/workspace.ts";
 import { duplicateFolder } from "@laoda/capability";
+import { getName, setName } from "./src/config.ts";
 
 function findEnvFiles(dir: string): string[] {
   try {
@@ -70,6 +71,13 @@ export function runCli(): void {
   });
 
   function askName(): void {
+    const saved = getName();
+    if (saved) {
+      userName = saved;
+      console.log(`  ${c.dim}User: ${c.reset}${c.bold}${saved}${c.reset}`);
+      promptTask();
+      return;
+    }
     console.log();
     rl.question(`  ${c.cyan}?${c.reset} Your name (for branch prefix): `, (name) => {
       const trimmed = name.trim();
@@ -78,6 +86,7 @@ export function runCli(): void {
         return;
       }
       userName = trimmed;
+      setName(trimmed);
       promptTask();
     });
   }
