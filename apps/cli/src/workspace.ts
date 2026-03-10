@@ -19,28 +19,7 @@ function isGitClean(dir: string): boolean {
 }
 
 /**
- * Check if any claude process has open files in the given directory
- */
-function hasClaudeProcess(dir: string): boolean {
-  try {
-    const output = execSync(`lsof +D ${dir}`, {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    for (const line of output.split("\n")) {
-      if (line.includes("claude")) {
-        return true;
-      }
-    }
-    return false;
-  } catch {
-    // lsof exits with 1 when no files found
-    return false;
-  }
-}
-
-/**
- * Find a reusable sibling folder (same base name pattern, git clean, no claude process).
+ * Find a reusable sibling folder (same base name pattern, git clean).
  * Returns the path if found, null otherwise.
  */
 export function findReusableFolder(cwd: string): string | null {
@@ -68,7 +47,7 @@ export function findReusableFolder(cwd: string): string | null {
     .filter((p) => existsSync(join(p, ".git")));
 
   for (const candidate of candidates) {
-    if (isGitClean(candidate) && !hasClaudeProcess(candidate)) {
+    if (isGitClean(candidate)) {
       return candidate;
     }
   }
