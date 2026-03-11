@@ -10,6 +10,7 @@ import {
   isModelsCacheStale, saveModelsCache, loadModelsCache,
 } from "./src/config.ts";
 import { classifyIntent, fetchModels } from "./src/llm.ts";
+import { logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
 
 function findEnvFiles(dir: string): string[] {
   try {
@@ -135,9 +136,11 @@ export function runCli(): void {
       return;
     }
 
+    logUserInput(input);
     try {
       console.log(`  ${c.dim}Thinking...${c.reset}`);
       const intent = await classifyIntent(input);
+      logIntent(intent);
 
       if (intent.type === "task") {
         await handleTask(intent.task, intent.branchName);
@@ -147,6 +150,7 @@ export function runCli(): void {
         console.log(`  ${c.yellow}?${c.reset} ${intent.message}`);
       }
     } catch (e: any) {
+      logError(e.message);
       console.log(`  ${c.red}✗${c.reset} ${e.message}`);
     }
 
@@ -161,6 +165,7 @@ export function runCli(): void {
     console.log();
     const confirm = (await question(`  ${c.cyan}?${c.reset} Proceed? (Y/n) `)).trim().toLowerCase();
     if (confirm === "n") {
+      logAction("task_cancelled");
       console.log(`  ${c.dim}Cancelled${c.reset}`);
       return;
     }
@@ -185,6 +190,7 @@ export function runCli(): void {
 
     // Spawn tab
     spawnTab(branchSlug, task, targetDir);
+    logAction(`tab_created dir=${targetDir} branch=${branch}`);
     console.log(`  ${c.green}✓${c.reset} Tab created`);
   }
 
@@ -212,6 +218,7 @@ export function runCli(): void {
     const idx = parseInt(pick) - 1;
     if (idx >= 0 && idx < matches.length) {
       setModel(matches[idx]!.id);
+      logAction(`model_changed to=${matches[idx]!.id}`);
       console.log(`  ${c.green}✓${c.reset} Model set to ${c.bold}${matches[idx]!.id}${c.reset}`);
     } else {
       console.log(`  ${c.dim}Cancelled${c.reset}`);

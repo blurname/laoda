@@ -1,4 +1,5 @@
 import { getOpenRouterKey, getModel } from "./config.ts";
+import { logLlmRequest, logLlmResponse } from "./logger.ts";
 
 export interface IntentTask {
   type: "task";
@@ -44,6 +45,9 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
     throw new Error("OpenRouter key not set. Run laoda with --set-key <key>");
   }
 
+  const model = getModel();
+  logLlmRequest(model, messages);
+
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -51,7 +55,7 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: getModel(),
+      model,
       messages,
       temperature: 0,
       max_tokens: maxTokens,
@@ -63,7 +67,9 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
   }
 
   const data = await res.json();
-  return (data.choices?.[0]?.message?.content ?? "").trim();
+  const content = (data.choices?.[0]?.message?.content ?? "").trim();
+  logLlmResponse(content);
+  return content;
 }
 
 function sanitizeBranchName(raw: string): string {
