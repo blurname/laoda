@@ -189,8 +189,12 @@ export function runCli(): void {
   }
 
   async function handleChangeModel(query: string): Promise<void> {
+    let q = query.trim().toLowerCase();
+    if (!q) {
+      q = (await question(`  ${c.cyan}?${c.reset} Search model: `)).trim().toLowerCase();
+      if (!q) return;
+    }
     const cached = loadModelsCache();
-    const q = query.toLowerCase();
     const matches = cached.filter((m) =>
       m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
     ).slice(0, 10);

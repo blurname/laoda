@@ -86,6 +86,7 @@ export async function classifyIntent(input: string): Promise<Intent> {
 
 2. User wants to change/switch the LLM model → {"type":"change_model","query":"<search keyword>"}
    - Extract the model name or keyword they want to search for
+   - If no specific model mentioned, use empty string as query
 
 3. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
 
@@ -102,6 +103,6 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
     }
     return parsed as Intent;
   } catch {
-    return { type: "unknown", message: "Failed to parse LLM response" };
+    return { type: "unknown", message: `Failed to parse LLM response: ${raw}` };
   }
 }
