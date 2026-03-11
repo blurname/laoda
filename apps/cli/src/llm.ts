@@ -1,5 +1,23 @@
 import { getOpenRouterKey, getModel } from "./config.ts";
 
+export interface IntentTask {
+  type: "task";
+  task: string;
+  branchName: string;
+}
+
+export interface IntentChangeModel {
+  type: "change_model";
+  query: string;
+}
+
+export interface IntentUnknown {
+  type: "unknown";
+  message: string;
+}
+
+export type Intent = IntentTask | IntentChangeModel | IntentUnknown;
+
 interface OpenRouterModel {
   id: string;
   name: string;
@@ -20,7 +38,7 @@ interface ChatMessage {
   content: string;
 }
 
-async function chat(messages: ChatMessage[]): Promise<string> {
+async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
   const key = getOpenRouterKey();
   if (!key) {
     throw new Error("OpenRouter key not set. Run laoda with --set-key <key>");
@@ -36,7 +54,7 @@ async function chat(messages: ChatMessage[]): Promise<string> {
       model: getModel(),
       messages,
       temperature: 0,
-      max_tokens: 60,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -48,24 +66,42 @@ async function chat(messages: ChatMessage[]): Promise<string> {
   return (data.choices?.[0]?.message?.content ?? "").trim();
 }
 
-export async function generateBranchName(task: string): Promise<string> {
-  const raw = await chat([
-    {
-      role: "system",
-      content: `Generate a short git branch name from the task description. Rules:
-- Use lowercase kebab-case (e.g. add-login-page, fix-nav-bug)
-- Max 5 words, no special characters except hyphens
-- No prefix like feat/ or fix/
-- Return ONLY the branch name, nothing else`,
-    },
-    { role: "user", content: task },
-  ]);
-
-  // Sanitize: lowercase, replace non-alphanumeric with hyphens, trim hyphens
+function sanitizeBranchName(raw: string): string {
   return raw
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 50);
+}
+
+export async function classifyIntent(input: string): Promise<Intent> {
+  const raw = await chat([
+    {
+      role: "system",
+      content: `You are an intent classifier for a CLI tool. Classify user input into one of these intents and return ONLY valid JSON:
+
+1. User wants to execute a coding task → {"type":"task","task":"<original task>","branchName":"<kebab-case-short-name>"}
+   - branchName: lowercase kebab-case, max 5 words, no prefix like feat/fix
+
+2. User wants to change/switch the LLM model → {"type":"change_model","query":"<search keyword>"}
+   - Extract the model name or keyword they want to search for
+
+3. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
+
+Return ONLY the JSON object, no markdown fences, no extra text.`,
+    },
+    { role: "user", content: input },
+  ], 150);
+
+  const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  try {
+    const parsed = JSON.parse(json);
+    if (parsed.type === "task") {
+      parsed.branchName = sanitizeBranchName(parsed.branchName || "");
+    }
+    return parsed as Intent;
+  } catch {
+    return { type: "unknown", message: "Failed to parse LLM response" };
+  }
 }

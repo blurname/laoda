@@ -9,7 +9,7 @@ import {
   getModel, setModel,
   isModelsCacheStale, saveModelsCache, loadModelsCache,
 } from "./src/config.ts";
-import { generateBranchName, fetchModels } from "./src/llm.ts";
+import { classifyIntent, fetchModels } from "./src/llm.ts";
 
 function findEnvFiles(dir: string): string[] {
   try {
@@ -123,76 +123,95 @@ export function runCli(): void {
       }
     }
 
-    // Model selection
-    const currentModel = getModel();
-    console.log(`  ${c.dim}Model: ${c.reset}${c.bold}${currentModel}${c.reset}`);
-    const changeModel = (await question(`  ${c.cyan}?${c.reset} Change model? (enter to skip, or type to search): `)).trim();
-    if (changeModel) {
-      const cached = loadModelsCache();
-      const query = changeModel.toLowerCase();
-      const matches = cached.filter((m) =>
-        m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query),
-      ).slice(0, 10);
-
-      if (matches.length === 0) {
-        console.log(`  ${c.yellow}!${c.reset} No models matching "${changeModel}"`);
-      } else {
-        console.log();
-        for (let i = 0; i < matches.length; i++) {
-          console.log(`  ${c.dim}${i + 1}.${c.reset} ${matches[i]!.id} ${c.dim}(${matches[i]!.name})${c.reset}`);
-        }
-        const pick = (await question(`  ${c.cyan}?${c.reset} Pick number: `)).trim();
-        const idx = parseInt(pick) - 1;
-        if (idx >= 0 && idx < matches.length) {
-          setModel(matches[idx]!.id);
-          console.log(`  ${c.green}✓${c.reset} Model set to ${matches[idx]!.id}`);
-        }
-      }
-    }
-
-    promptTask();
+    console.log(`  ${c.dim}Model: ${c.reset}${c.bold}${getModel()}${c.reset}`);
+    loop();
   }
 
-  async function promptTask(): Promise<void> {
+  async function loop(): Promise<void> {
     console.log();
-    const task = (await question(`  ${c.cyan}?${c.reset} Enter task: `)).trim();
-    if (!task) {
-      promptTask();
+    const input = (await question(`  ${c.cyan}>${c.reset} `)).trim();
+    if (!input) {
+      loop();
       return;
     }
 
     try {
-      // Generate branch name via LLM
-      console.log(`  ${c.cyan}⟳${c.reset} Generating branch name...`);
-      const slug = await generateBranchName(task);
-      const branch = `${userName}/${slug}`;
+      console.log(`  ${c.dim}Thinking...${c.reset}`);
+      const intent = await classifyIntent(input);
 
-      // Find or create workspace
-      const reusable = findReusableFolder(cwd);
-      let targetDir: string;
-      if (reusable) {
-        targetDir = reusable;
-        console.log(`  ${c.yellow}↻${c.reset} Reusing ${c.bold}${reusable}${c.reset}`);
+      if (intent.type === "task") {
+        await handleTask(intent.task, intent.branchName);
+      } else if (intent.type === "change_model") {
+        await handleChangeModel(intent.query);
       } else {
-        console.log(`  ${c.cyan}⟳${c.reset} Duplicating...`);
-        const envFiles = findEnvFiles(cwd);
-        targetDir = duplicateFolder(cwd, envFiles);
-        console.log(`  ${c.green}✓${c.reset} ${targetDir}`);
+        console.log(`  ${c.yellow}?${c.reset} ${intent.message}`);
       }
-
-      // Prepare git branch
-      console.log(`  ${c.cyan}⟳${c.reset} Preparing branch ${c.bold}${branch}${c.reset}...`);
-      prepareGitBranch(targetDir, branch);
-      console.log(`  ${c.green}✓${c.reset} On branch ${branch}`);
-
-      // Spawn tab with slug as tab name
-      spawnTab(slug, task, targetDir);
-      console.log(`  ${c.green}✓${c.reset} Tab created`);
     } catch (e: any) {
       console.log(`  ${c.red}✗${c.reset} ${e.message}`);
     }
 
-    promptTask();
+    loop();
+  }
+
+  async function handleTask(task: string, branchSlug: string): Promise<void> {
+    const branch = `${userName}/${branchSlug}`;
+    console.log();
+    console.log(`  ${c.bold}Task:${c.reset}   ${task}`);
+    console.log(`  ${c.bold}Branch:${c.reset} ${branch}`);
+    console.log();
+    const confirm = (await question(`  ${c.cyan}?${c.reset} Proceed? (Y/n) `)).trim().toLowerCase();
+    if (confirm === "n") {
+      console.log(`  ${c.dim}Cancelled${c.reset}`);
+      return;
+    }
+
+    // Find or create workspace
+    const reusable = findReusableFolder(cwd);
+    let targetDir: string;
+    if (reusable) {
+      targetDir = reusable;
+      console.log(`  ${c.yellow}↻${c.reset} Reusing ${c.bold}${reusable}${c.reset}`);
+    } else {
+      console.log(`  ${c.cyan}⟳${c.reset} Duplicating...`);
+      const envFiles = findEnvFiles(cwd);
+      targetDir = duplicateFolder(cwd, envFiles);
+      console.log(`  ${c.green}✓${c.reset} ${targetDir}`);
+    }
+
+    // Prepare git branch
+    console.log(`  ${c.cyan}⟳${c.reset} Preparing branch ${c.bold}${branch}${c.reset}...`);
+    prepareGitBranch(targetDir, branch);
+    console.log(`  ${c.green}✓${c.reset} On branch ${branch}`);
+
+    // Spawn tab
+    spawnTab(branchSlug, task, targetDir);
+    console.log(`  ${c.green}✓${c.reset} Tab created`);
+  }
+
+  async function handleChangeModel(query: string): Promise<void> {
+    const cached = loadModelsCache();
+    const q = query.toLowerCase();
+    const matches = cached.filter((m) =>
+      m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
+    ).slice(0, 10);
+
+    if (matches.length === 0) {
+      console.log(`  ${c.yellow}!${c.reset} No models matching "${query}"`);
+      return;
+    }
+
+    console.log();
+    for (let i = 0; i < matches.length; i++) {
+      console.log(`  ${c.dim}${i + 1}.${c.reset} ${matches[i]!.id} ${c.dim}(${matches[i]!.name})${c.reset}`);
+    }
+    const pick = (await question(`  ${c.cyan}?${c.reset} Pick number (enter to cancel): `)).trim();
+    const idx = parseInt(pick) - 1;
+    if (idx >= 0 && idx < matches.length) {
+      setModel(matches[idx]!.id);
+      console.log(`  ${c.green}✓${c.reset} Model set to ${c.bold}${matches[idx]!.id}${c.reset}`);
+    } else {
+      console.log(`  ${c.dim}Cancelled${c.reset}`);
+    }
   }
 
   setup();
