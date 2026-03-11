@@ -15,6 +15,10 @@ export function renderBanner(): void {
   console.log(`  ${c.dim}Ctrl+D to exit${c.reset}`);
 }
 
+export function renderProject(project: string): void {
+  console.log(`  ${c.dim}Project: ${c.reset}${c.bold}${project}${c.reset}`);
+}
+
 export function renderUser(name: string): void {
   console.log(`  ${c.dim}User: ${c.reset}${c.bold}${name}${c.reset}`);
 }

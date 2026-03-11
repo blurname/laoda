@@ -1,6 +1,6 @@
 import { createInterface } from "readline";
 import { spawnTab } from "./src/zellij.ts";
-import { findReusableFolder } from "./src/workspace.ts";
+import { findReusableFolder, getProjectName } from "./src/workspace.ts";
 import { findEnvFiles, prepareGitBranch } from "./src/git.ts";
 import { duplicateFolder } from "@laoda/capability";
 import {
@@ -16,11 +16,12 @@ import {
 } from "./src/config.ts";
 import type { IntentTask, IntentChangeModel } from "./src/llm.ts";
 import { classifyIntent, fetchModels } from "./src/llm.ts";
-import { logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
-import { memoLookup, memoSave } from "./src/memo.ts";
+import { setLogProject, logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
+import { setMemoProject, memoLookup, memoSave } from "./src/memo.ts";
 import type { Context } from "./src/types.ts";
 import {
   renderBanner,
+  renderProject,
   renderUser,
   renderModel,
   renderCached,
@@ -46,7 +47,11 @@ export function runCli(): void {
   renderBanner();
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  const ctx: Context = { cwd: process.cwd(), userName: "" };
+  const cwd = process.cwd();
+  const project = getProjectName(cwd);
+  setLogProject(project);
+  setMemoProject(project);
+  const ctx: Context = { cwd, userName: "", project };
 
   rl.on("SIGINT", () => {
     process.stdout.write("\n");
@@ -64,6 +69,8 @@ export function runCli(): void {
   }
 
   async function setup(): Promise<void> {
+    renderProject(ctx.project);
+
     const savedName = getName();
     if (savedName) {
       ctx.userName = savedName;

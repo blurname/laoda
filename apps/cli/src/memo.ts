@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import type { Intent } from "./llm.ts";
@@ -17,9 +17,20 @@ type MemoStore = {
   entries: MemoEntry[];
 };
 
-const MEMO_PATH = join(homedir(), ".local", "share", "laoda", "memo.json");
+const MEMO_DIR = join(homedir(), ".local", "share", "laoda", "memo");
 const MAX_ENTRIES = 200;
 const SIMILARITY_THRESHOLD = 0.8;
+
+let currentProject = "";
+
+export function setMemoProject(project: string): void {
+  currentProject = project;
+}
+
+function getMemoPath(): string {
+  const dir = currentProject ? join(MEMO_DIR, currentProject) : MEMO_DIR;
+  return join(dir, "memo.json");
+}
 
 const BUCKET_KEYWORDS: Record<string, IntentBucket> = {
   change: "change",
@@ -67,16 +78,22 @@ function tokenSimilarity(a: string[], b: string[]): number {
 }
 
 function loadStore(): MemoStore {
-  if (!existsSync(MEMO_PATH)) return { entries: [] };
+  const path = getMemoPath();
+  if (!existsSync(path)) return { entries: [] };
   try {
-    return JSON.parse(readFileSync(MEMO_PATH, "utf-8"));
+    return JSON.parse(readFileSync(path, "utf-8"));
   } catch {
     return { entries: [] };
   }
 }
 
 function saveStore(store: MemoStore): void {
-  writeFileSync(MEMO_PATH, JSON.stringify(store), "utf-8");
+  const path = getMemoPath();
+  const dir = join(path, "..");
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  writeFileSync(path, JSON.stringify(store), "utf-8");
 }
 
 export function memoLookup(input: string): Intent | null {

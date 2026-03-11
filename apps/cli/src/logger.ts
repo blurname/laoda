@@ -2,17 +2,28 @@ import { appendFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
-const LOG_DIR = join(homedir(), ".local", "share", "laoda", "logs");
+const BASE_LOG_DIR = join(homedir(), ".local", "share", "laoda", "logs");
+
+let currentProject = "";
+
+export function setLogProject(project: string): void {
+  currentProject = project;
+}
+
+function getLogDir(): string {
+  return currentProject ? join(BASE_LOG_DIR, currentProject) : BASE_LOG_DIR;
+}
 
 function ensureLogDir(): void {
-  if (!existsSync(LOG_DIR)) {
-    mkdirSync(LOG_DIR, { recursive: true });
+  const dir = getLogDir();
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
   }
 }
 
 function getLogPath(): string {
   const date = new Date().toISOString().slice(0, 10);
-  return join(LOG_DIR, `${date}.log`);
+  return join(getLogDir(), `${date}.log`);
 }
 
 function timestamp(): string {

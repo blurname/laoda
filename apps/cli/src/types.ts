@@ -1,6 +1,7 @@
 export type Context = {
   cwd: string;
   userName: string;
+  project: string;
 };
 
 export type Effect =

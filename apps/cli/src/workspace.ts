@@ -2,6 +2,12 @@ import { readdirSync, existsSync } from "fs";
 import { join, basename } from "path";
 import { execSync } from "child_process";
 
+export function getProjectName(cwd: string): string {
+  const fullName = basename(cwd);
+  const match = fullName.match(/^(.*?)-(\d+)$/);
+  return match ? match[1]! : fullName;
+}
+
 /**
  * Check if a folder has no git diff (clean working tree)
  */
