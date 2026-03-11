@@ -2,12 +2,12 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
-interface LaodaConfig {
+type LaodaConfig = {
   name?: string;
   openrouterKey?: string;
   model?: string;
   modelsCacheDate?: string;
-}
+};
 
 const CONFIG_DIR = join(homedir(), ".local", "share", "laoda");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");

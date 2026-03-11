@@ -1,29 +1,29 @@
 import { getOpenRouterKey, getModel } from "./config.ts";
 import { logLlmRequest, logLlmResponse } from "./logger.ts";
 
-export interface IntentTask {
+export type IntentTask = {
   type: "task";
   task: string;
   branchName: string;
-}
+};
 
-export interface IntentChangeModel {
+export type IntentChangeModel = {
   type: "change_model";
   query: string;
-}
+};
 
-export interface IntentUnknown {
+export type IntentUnknown = {
   type: "unknown";
   message: string;
-}
+};
 
 export type Intent = IntentTask | IntentChangeModel | IntentUnknown;
 
-interface OpenRouterModel {
+type OpenRouterModel = {
   id: string;
   name: string;
   pricing: { prompt: string; completion: string };
-}
+};
 
 export async function fetchModels(): Promise<OpenRouterModel[]> {
   const res = await fetch("https://openrouter.ai/api/v1/models");
@@ -34,10 +34,10 @@ export async function fetchModels(): Promise<OpenRouterModel[]> {
   return (data.data ?? []) as OpenRouterModel[];
 }
 
-interface ChatMessage {
+type ChatMessage = {
   role: "system" | "user";
   content: string;
-}
+};
 
 async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
   const key = getOpenRouterKey();
