@@ -53,14 +53,14 @@ const BUCKET_KEYWORDS: Record<string, IntentBucket> = {
   refactor: "update",
 };
 
-function tokenize(input: string): string[] {
+export function tokenize(input: string): string[] {
   return input
     .toLowerCase()
     .split(/\s+/)
     .filter((w) => w.length > 0);
 }
 
-function getBucket(tokens: string[]): IntentBucket {
+export function getBucket(tokens: string[]): IntentBucket {
   for (const token of tokens) {
     if (token in BUCKET_KEYWORDS) {
       return BUCKET_KEYWORDS[token]!;
@@ -69,7 +69,7 @@ function getBucket(tokens: string[]): IntentBucket {
   return "other";
 }
 
-function tokenSimilarity(a: string[], b: string[]): number {
+export function tokenSimilarity(a: string[], b: string[]): number {
   const sa = new Set(a);
   const sb = new Set(b);
   const intersection = [...sa].filter((w) => sb.has(w)).length;

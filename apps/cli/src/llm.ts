@@ -72,7 +72,7 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
   return content;
 }
 
-function sanitizeBranchName(raw: string): string {
+export function sanitizeBranchName(raw: string): string {
   return raw
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-")
