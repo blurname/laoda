@@ -16,6 +16,7 @@ import {
 } from "./src/config.ts";
 import { classifyIntent, fetchModels } from "./src/llm.ts";
 import { logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
+import { memoLookup, memoSave } from "./src/memo.ts";
 
 function findEnvFiles(dir: string): string[] {
   try {
@@ -143,8 +144,17 @@ export function runCli(): void {
 
     logUserInput(input);
     try {
-      console.log(`  ${c.dim}Thinking...${c.reset}`);
-      const intent = await classifyIntent(input);
+      // Check memo cache first
+      const cached = memoLookup(input);
+      let intent;
+      if (cached) {
+        intent = cached;
+        console.log(`  ${c.dim}(cached)${c.reset}`);
+      } else {
+        console.log(`  ${c.dim}Thinking...${c.reset}`);
+        intent = await classifyIntent(input);
+        memoSave(input, intent);
+      }
       logIntent(intent);
 
       if (intent.type === "task") {
