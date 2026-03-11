@@ -4,10 +4,15 @@ import { spawnTab } from "./src/zellij.ts";
 import { findReusableFolder } from "./src/workspace.ts";
 import { duplicateFolder } from "@laoda/capability";
 import {
-  getName, setName,
-  getOpenRouterKey, setOpenRouterKey,
-  getModel, setModel,
-  isModelsCacheStale, saveModelsCache, loadModelsCache,
+  getName,
+  setName,
+  getOpenRouterKey,
+  setOpenRouterKey,
+  getModel,
+  setModel,
+  isModelsCacheStale,
+  saveModelsCache,
+  loadModelsCache,
 } from "./src/config.ts";
 import { classifyIntent, fetchModels } from "./src/llm.ts";
 import { logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
@@ -19,9 +24,7 @@ function findEnvFiles(dir: string): string[] {
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
     });
-    return output
-      .split("\0")
-      .filter((f) => f && /(?:^|\/)\.env\.local$/.test(f));
+    return output.split("\0").filter((f) => f && /(?:^|\/)\.env\.local$/.test(f));
   } catch {
     return [];
   }
@@ -92,7 +95,9 @@ export function runCli(): void {
     } else {
       console.log();
       while (!userName) {
-        const name = (await question(`  ${c.cyan}?${c.reset} Your name (for branch prefix): `)).trim();
+        const name = (
+          await question(`  ${c.cyan}?${c.reset} Your name (for branch prefix): `)
+        ).trim();
         if (name) {
           userName = name;
           setName(name);
@@ -201,9 +206,9 @@ export function runCli(): void {
       if (!q) return;
     }
     const cached = loadModelsCache();
-    const matches = cached.filter((m) =>
-      m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-    ).slice(0, 10);
+    const matches = cached
+      .filter((m) => m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q))
+      .slice(0, 10);
 
     if (matches.length === 0) {
       console.log(`  ${c.yellow}!${c.reset} No models matching "${query}"`);
@@ -212,7 +217,9 @@ export function runCli(): void {
 
     console.log();
     for (let i = 0; i < matches.length; i++) {
-      console.log(`  ${c.dim}${i + 1}.${c.reset} ${matches[i]!.id} ${c.dim}(${matches[i]!.name})${c.reset}`);
+      console.log(
+        `  ${c.dim}${i + 1}.${c.reset} ${matches[i]!.id} ${c.dim}(${matches[i]!.name})${c.reset}`,
+      );
     }
     const pick = (await question(`  ${c.cyan}?${c.reset} Pick number (enter to cancel): `)).trim();
     const idx = parseInt(pick) - 1;

@@ -30,8 +30,8 @@ export async function fetchModels(): Promise<OpenRouterModel[]> {
   if (!res.ok) {
     throw new Error(`Failed to fetch models: ${res.status}`);
   }
-  const data = await res.json();
-  return (data.data ?? []) as OpenRouterModel[];
+  const data = (await res.json()) as { data: OpenRouterModel[] };
+  return data.data ?? [];
 }
 
 type ChatMessage = {
@@ -66,7 +66,7 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
     throw new Error(`OpenRouter API error: ${res.status} ${await res.text()}`);
   }
 
-  const data = await res.json();
+  const data = (await res.json()) as { choices: { message: { content: string } }[] };
   const content = (data.choices?.[0]?.message?.content ?? "").trim();
   logLlmResponse(content);
   return content;
@@ -82,10 +82,11 @@ function sanitizeBranchName(raw: string): string {
 }
 
 export async function classifyIntent(input: string): Promise<Intent> {
-  const raw = await chat([
-    {
-      role: "system",
-      content: `You are an intent classifier for a CLI tool. Classify user input into one of these intents and return ONLY valid JSON:
+  const raw = await chat(
+    [
+      {
+        role: "system",
+        content: `You are an intent classifier for a CLI tool. Classify user input into one of these intents and return ONLY valid JSON:
 
 1. User wants to execute a coding task → {"type":"task","task":"<original task>","branchName":"<kebab-case-short-name>"}
    - branchName: lowercase kebab-case, max 5 words, no prefix like feat/fix
@@ -97,9 +98,11 @@ export async function classifyIntent(input: string): Promise<Intent> {
 3. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
 
 Return ONLY the JSON object, no markdown fences, no extra text.`,
-    },
-    { role: "user", content: input },
-  ], 150);
+      },
+      { role: "user", content: input },
+    ],
+    150,
+  );
 
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   try {

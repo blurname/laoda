@@ -26,6 +26,8 @@ export function spawnTab(title: string, prompt: string, cwd?: string): void {
     const args = ["action", "new-tab", "-l", layoutPath];
     execFileSync("zellij", args, { stdio: "pipe" });
   } finally {
-    try { unlinkSync(layoutPath); } catch {}
+    try {
+      unlinkSync(layoutPath);
+    } catch {}
   }
 }

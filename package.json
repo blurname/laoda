@@ -1,7 +1,6 @@
 {
   "name": "laoda",
   "version": "0.0.3",
-  "type": "module",
   "bin": {
     "laoda": "dist/index.js"
   },
@@ -12,6 +11,7 @@
     "dist",
     "README.md"
   ],
+  "type": "module",
   "scripts": {
     "version-bump": "cox root-version-bump",
     "tag-push": "cox tag-push",
