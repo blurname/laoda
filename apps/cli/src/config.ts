@@ -6,10 +6,12 @@ interface LaodaConfig {
   name?: string;
   openrouterKey?: string;
   model?: string;
+  modelsCacheDate?: string;
 }
 
 const CONFIG_DIR = join(homedir(), ".local", "share", "laoda");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
+const MODELS_CACHE_PATH = join(CONFIG_DIR, "models.json");
 
 function ensureDir(): void {
   if (!existsSync(CONFIG_DIR)) {
@@ -61,4 +63,32 @@ export function setModel(model: string): void {
   const config = loadConfig();
   config.model = model;
   saveConfig(config);
+}
+
+export function getModelsCacheDate(): string | undefined {
+  return loadConfig().modelsCacheDate;
+}
+
+export function saveModelsCache(models: { id: string; name: string }[]): void {
+  ensureDir();
+  writeFileSync(MODELS_CACHE_PATH, JSON.stringify(models), "utf-8");
+  const config = loadConfig();
+  config.modelsCacheDate = new Date().toISOString().slice(0, 10);
+  saveConfig(config);
+}
+
+export function loadModelsCache(): { id: string; name: string }[] {
+  if (!existsSync(MODELS_CACHE_PATH)) return [];
+  try {
+    return JSON.parse(readFileSync(MODELS_CACHE_PATH, "utf-8"));
+  } catch {
+    return [];
+  }
+}
+
+export function isModelsCacheStale(): boolean {
+  const date = getModelsCacheDate();
+  if (!date) return true;
+  const today = new Date().toISOString().slice(0, 10);
+  return date !== today;
 }

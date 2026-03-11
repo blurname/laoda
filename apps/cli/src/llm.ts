@@ -1,5 +1,20 @@
 import { getOpenRouterKey, getModel } from "./config.ts";
 
+interface OpenRouterModel {
+  id: string;
+  name: string;
+  pricing: { prompt: string; completion: string };
+}
+
+export async function fetchModels(): Promise<OpenRouterModel[]> {
+  const res = await fetch("https://openrouter.ai/api/v1/models");
+  if (!res.ok) {
+    throw new Error(`Failed to fetch models: ${res.status}`);
+  }
+  const data = await res.json();
+  return (data.data ?? []) as OpenRouterModel[];
+}
+
 interface ChatMessage {
   role: "system" | "user";
   content: string;

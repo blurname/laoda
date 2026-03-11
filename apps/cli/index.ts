@@ -3,8 +3,13 @@ import { execSync } from "child_process";
 import { spawnTab } from "./src/zellij.ts";
 import { findReusableFolder } from "./src/workspace.ts";
 import { duplicateFolder } from "@laoda/capability";
-import { getName, setName, getOpenRouterKey, setOpenRouterKey } from "./src/config.ts";
-import { generateBranchName } from "./src/llm.ts";
+import {
+  getName, setName,
+  getOpenRouterKey, setOpenRouterKey,
+  getModel, setModel,
+  isModelsCacheStale, saveModelsCache, loadModelsCache,
+} from "./src/config.ts";
+import { generateBranchName, fetchModels } from "./src/llm.ts";
 
 function findEnvFiles(dir: string): string[] {
   try {
@@ -103,6 +108,46 @@ export function runCli(): void {
       }
       setOpenRouterKey(key);
       console.log(`  ${c.green}✓${c.reset} Key saved`);
+    }
+
+    // Refresh models cache daily
+    if (isModelsCacheStale()) {
+      console.log(`  ${c.cyan}⟳${c.reset} Fetching models...`);
+      try {
+        const models = await fetchModels();
+        const simplified = models.map((m) => ({ id: m.id, name: m.name }));
+        saveModelsCache(simplified);
+        console.log(`  ${c.green}✓${c.reset} ${simplified.length} models cached`);
+      } catch (e: any) {
+        console.log(`  ${c.yellow}!${c.reset} Failed to fetch models: ${e.message}`);
+      }
+    }
+
+    // Model selection
+    const currentModel = getModel();
+    console.log(`  ${c.dim}Model: ${c.reset}${c.bold}${currentModel}${c.reset}`);
+    const changeModel = (await question(`  ${c.cyan}?${c.reset} Change model? (enter to skip, or type to search): `)).trim();
+    if (changeModel) {
+      const cached = loadModelsCache();
+      const query = changeModel.toLowerCase();
+      const matches = cached.filter((m) =>
+        m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query),
+      ).slice(0, 10);
+
+      if (matches.length === 0) {
+        console.log(`  ${c.yellow}!${c.reset} No models matching "${changeModel}"`);
+      } else {
+        console.log();
+        for (let i = 0; i < matches.length; i++) {
+          console.log(`  ${c.dim}${i + 1}.${c.reset} ${matches[i]!.id} ${c.dim}(${matches[i]!.name})${c.reset}`);
+        }
+        const pick = (await question(`  ${c.cyan}?${c.reset} Pick number: `)).trim();
+        const idx = parseInt(pick) - 1;
+        if (idx >= 0 && idx < matches.length) {
+          setModel(matches[idx]!.id);
+          console.log(`  ${c.green}✓${c.reset} Model set to ${matches[idx]!.id}`);
+        }
+      }
     }
 
     promptTask();
