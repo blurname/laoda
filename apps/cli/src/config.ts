@@ -4,6 +4,8 @@ import { homedir } from "os";
 
 interface LaodaConfig {
   name?: string;
+  openrouterKey?: string;
+  model?: string;
 }
 
 const CONFIG_DIR = join(homedir(), ".local", "share", "laoda");
@@ -38,5 +40,25 @@ export function getName(): string | undefined {
 export function setName(name: string): void {
   const config = loadConfig();
   config.name = name;
+  saveConfig(config);
+}
+
+export function getOpenRouterKey(): string | undefined {
+  return loadConfig().openrouterKey;
+}
+
+export function setOpenRouterKey(key: string): void {
+  const config = loadConfig();
+  config.openrouterKey = key;
+  saveConfig(config);
+}
+
+export function getModel(): string {
+  return loadConfig().model || "google/gemini-2.0-flash-001";
+}
+
+export function setModel(model: string): void {
+  const config = loadConfig();
+  config.model = model;
   saveConfig(config);
 }

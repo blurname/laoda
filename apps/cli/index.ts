@@ -3,7 +3,8 @@ import { execSync } from "child_process";
 import { spawnTab } from "./src/zellij.ts";
 import { findReusableFolder } from "./src/workspace.ts";
 import { duplicateFolder } from "@laoda/capability";
-import { getName, setName } from "./src/config.ts";
+import { getName, setName, getOpenRouterKey, setOpenRouterKey } from "./src/config.ts";
+import { generateBranchName } from "./src/llm.ts";
 
 function findEnvFiles(dir: string): string[] {
   try {
@@ -70,75 +71,84 @@ export function runCli(): void {
     process.exit(0);
   });
 
-  function askName(): void {
-    const saved = getName();
-    if (saved) {
-      userName = saved;
-      console.log(`  ${c.dim}User: ${c.reset}${c.bold}${saved}${c.reset}`);
+  function question(prompt: string): Promise<string> {
+    return new Promise((resolve) => {
+      rl.question(prompt, resolve);
+    });
+  }
+
+  async function setup(): Promise<void> {
+    // Name
+    const savedName = getName();
+    if (savedName) {
+      userName = savedName;
+      console.log(`  ${c.dim}User: ${c.reset}${c.bold}${savedName}${c.reset}`);
+    } else {
+      console.log();
+      while (!userName) {
+        const name = (await question(`  ${c.cyan}?${c.reset} Your name (for branch prefix): `)).trim();
+        if (name) {
+          userName = name;
+          setName(name);
+        }
+      }
+    }
+
+    // OpenRouter key
+    if (!getOpenRouterKey()) {
+      console.log();
+      let key = "";
+      while (!key) {
+        key = (await question(`  ${c.cyan}?${c.reset} OpenRouter API key: `)).trim();
+      }
+      setOpenRouterKey(key);
+      console.log(`  ${c.green}✓${c.reset} Key saved`);
+    }
+
+    promptTask();
+  }
+
+  async function promptTask(): Promise<void> {
+    console.log();
+    const task = (await question(`  ${c.cyan}?${c.reset} Enter task: `)).trim();
+    if (!task) {
       promptTask();
       return;
     }
-    console.log();
-    rl.question(`  ${c.cyan}?${c.reset} Your name (for branch prefix): `, (name) => {
-      const trimmed = name.trim();
-      if (!trimmed) {
-        askName();
-        return;
-      }
-      userName = trimmed;
-      setName(trimmed);
-      promptTask();
-    });
-  }
 
-  function generateBranchName(): string {
-    const now = new Date();
-    const ts = [
-      now.getFullYear(),
-      String(now.getMonth() + 1).padStart(2, "0"),
-      String(now.getDate()).padStart(2, "0"),
-      String(now.getHours()).padStart(2, "0"),
-      String(now.getMinutes()).padStart(2, "0"),
-    ].join("");
-    return `${userName}/${ts}`;
-  }
+    try {
+      // Generate branch name via LLM
+      console.log(`  ${c.cyan}⟳${c.reset} Generating branch name...`);
+      const slug = await generateBranchName(task);
+      const branch = `${userName}/${slug}`;
 
-  function promptTask(): void {
-    console.log();
-    rl.question(`  ${c.cyan}?${c.reset} Enter task: `, (task) => {
-      const trimmed = task.trim();
-      if (!trimmed) {
-        promptTask();
-        return;
+      // Find or create workspace
+      const reusable = findReusableFolder(cwd);
+      let targetDir: string;
+      if (reusable) {
+        targetDir = reusable;
+        console.log(`  ${c.yellow}↻${c.reset} Reusing ${c.bold}${reusable}${c.reset}`);
+      } else {
+        console.log(`  ${c.cyan}⟳${c.reset} Duplicating...`);
+        const envFiles = findEnvFiles(cwd);
+        targetDir = duplicateFolder(cwd, envFiles);
+        console.log(`  ${c.green}✓${c.reset} ${targetDir}`);
       }
 
-      try {
-        const reusable = findReusableFolder(cwd);
-        let targetDir: string;
-        if (reusable) {
-          targetDir = reusable;
-          console.log(`  ${c.yellow}↻${c.reset} Reusing ${c.bold}${reusable}${c.reset}`);
-        } else {
-          console.log(`  ${c.cyan}⟳${c.reset} Duplicating...`);
-          const envFiles = findEnvFiles(cwd);
-          targetDir = duplicateFolder(cwd, envFiles);
-          console.log(`  ${c.green}✓${c.reset} ${targetDir}`);
-        }
+      // Prepare git branch
+      console.log(`  ${c.cyan}⟳${c.reset} Preparing branch ${c.bold}${branch}${c.reset}...`);
+      prepareGitBranch(targetDir, branch);
+      console.log(`  ${c.green}✓${c.reset} On branch ${branch}`);
 
-        const branch = generateBranchName();
-        console.log(`  ${c.cyan}⟳${c.reset} Preparing branch ${c.bold}${branch}${c.reset}...`);
-        prepareGitBranch(targetDir, branch);
-        console.log(`  ${c.green}✓${c.reset} On branch ${branch}`);
+      // Spawn tab with slug as tab name
+      spawnTab(slug, task, targetDir);
+      console.log(`  ${c.green}✓${c.reset} Tab created`);
+    } catch (e: any) {
+      console.log(`  ${c.red}✗${c.reset} ${e.message}`);
+    }
 
-        spawnTab(trimmed.slice(0, 40), trimmed, targetDir);
-        console.log(`  ${c.green}✓${c.reset} Tab created`);
-      } catch (e: any) {
-        console.log(`  ${c.red}✗${c.reset} ${e.message}`);
-      }
-
-      promptTask();
-    });
+    promptTask();
   }
 
-  askName();
+  setup();
 }
