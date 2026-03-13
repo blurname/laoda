@@ -84,7 +84,6 @@ describe("memoLookup / memoSave integration", () => {
     setMemoProject(testProject);
   });
 
-
   it("returns null when no entries exist", () => {
     expect(memoLookup("add a new feature")).toBeNull();
   });

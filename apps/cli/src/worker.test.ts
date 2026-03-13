@@ -5,6 +5,7 @@ import {
   findUnregistered,
   findOtherWorker,
   findNextMyWorkerIndex,
+  getOtherWorkerNames,
 } from "./worker.ts";
 import type { WorkerRegistry, OtherWorker } from "./types.ts";
 
@@ -118,5 +119,30 @@ describe("findNextMyWorkerIndex", () => {
         updatedAt: 0,
       }),
     ).toBe(1);
+  });
+});
+
+describe("getOtherWorkerNames", () => {
+  it("returns only OtherWorker names", () => {
+    const registry: WorkerRegistry = {
+      project: "p",
+      workers: [
+        { type: "my", index: 1 },
+        { type: "other", name: "zar", userType: "designer" },
+        { type: "my", index: 2 },
+        { type: "other", name: "cws", userType: "product" },
+      ],
+      updatedAt: 0,
+    };
+    expect(getOtherWorkerNames(registry)).toEqual(["zar", "cws"]);
+  });
+
+  it("returns empty for no OtherWorkers", () => {
+    const registry: WorkerRegistry = {
+      project: "p",
+      workers: [{ type: "my", index: 1 }],
+      updatedAt: 0,
+    };
+    expect(getOtherWorkerNames(registry)).toEqual([]);
   });
 });

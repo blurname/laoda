@@ -116,3 +116,50 @@ export function resolveWorkerFolders(cwd: string, registry: WorkerRegistry): Wor
     return { worker, path, exists: existsSync(path) };
   });
 }
+
+// ─── Reconciliation ───
+
+export function reconcileRegistry(
+  registry: WorkerRegistry,
+  cwd: string,
+  newWorkers: { name: string; userType: "designer" | "product" }[],
+): WorkerRegistry {
+  const physicalFolders = scanSiblingFolders(cwd, registry.project);
+
+  // Add numeric folders as MyWorkers
+  for (const folder of physicalFolders) {
+    const classified = classifyFolderSuffix(registry.project, folder);
+    if (!classified) continue;
+    if (classified.type === "numeric") {
+      const exists = registry.workers.some(
+        (w): w is MyWorker => w.type === "my" && w.index === classified.index,
+      );
+      if (!exists) {
+        registry.workers.push({ type: "my", index: classified.index });
+      }
+    }
+  }
+
+  // Add named folders as OtherWorkers (using LLM classification)
+  for (const nw of newWorkers) {
+    const exists = registry.workers.some(
+      (w): w is OtherWorker => w.type === "other" && w.name === nw.name,
+    );
+    if (!exists) {
+      registry.workers.push({ type: "other", name: nw.name, userType: nw.userType });
+    }
+  }
+
+  // Remove workers whose folders no longer exist
+  const folderSet = new Set(physicalFolders);
+  registry.workers = registry.workers.filter((w) => {
+    const name = workerFolderName(registry.project, w);
+    return folderSet.has(name);
+  });
+
+  return registry;
+}
+
+export function getOtherWorkerNames(registry: WorkerRegistry): string[] {
+  return registry.workers.filter((w): w is OtherWorker => w.type === "other").map((w) => w.name);
+}

@@ -14,12 +14,21 @@ import {
   saveModelsCache,
   loadModelsCache,
 } from "./src/config.ts";
-import type { IntentTask, IntentChangeModel } from "./src/llm.ts";
-import { classifyIntent, fetchModels } from "./src/llm.ts";
+import type { IntentTask, IntentChangeModel, IntentReview } from "./src/llm.ts";
+import { classifyIntent, classifyUnregistered, fetchModels } from "./src/llm.ts";
 import { setLogProject, logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
 import { setMemoProject, memoLookup, memoSave } from "./src/memo.ts";
 import type { Context } from "./src/types.ts";
-import { loadRegistry } from "./src/worker.ts";
+import {
+  loadRegistry,
+  saveRegistry,
+  scanSiblingFolders,
+  findUnregistered,
+  reconcileRegistry,
+  findOtherWorker,
+  workerDir,
+  getOtherWorkerNames,
+} from "./src/worker.ts";
 import {
   renderBanner,
   renderProject,
@@ -110,6 +119,26 @@ export function runCli(): void {
       }
     }
 
+    // Reconcile worker registry with physical folders
+    const physicalFolders = scanSiblingFolders(ctx.cwd, ctx.project);
+    const unregistered = findUnregistered(ctx.registry, physicalFolders);
+    const unregisteredNamed = unregistered.filter((u) => !/^\d+$/.test(u));
+    if (unregisteredNamed.length > 0) {
+      renderFetching(`Classifying ${unregisteredNamed.length} new worker(s)...`);
+      const classified = await classifyUnregistered(unregisteredNamed);
+      ctx.registry = reconcileRegistry(ctx.registry, ctx.cwd, classified);
+      saveRegistry(ctx.registry);
+      renderSuccess(`Workers synced (${ctx.registry.workers.length} total)`);
+    } else if (unregistered.length > 0) {
+      ctx.registry = reconcileRegistry(ctx.registry, ctx.cwd, []);
+      saveRegistry(ctx.registry);
+    }
+
+    const otherNames = getOtherWorkerNames(ctx.registry);
+    if (otherNames.length > 0) {
+      renderSuccess(`Team: ${otherNames.join(", ")}`);
+    }
+
     renderModel(getModel());
     loop();
   }
@@ -131,7 +160,7 @@ export function runCli(): void {
         renderCached();
       } else {
         renderThinking();
-        intent = await classifyIntent(input);
+        intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry));
         memoSave(input, intent);
       }
       logIntent(intent);
@@ -139,7 +168,7 @@ export function runCli(): void {
       if (intent.type === "task") {
         await handleTask(ctx, intent, question);
       } else if (intent.type === "review") {
-        renderInfo("review: not yet implemented");
+        await handleReview(ctx, intent, question);
       } else if (intent.type === "change_model") {
         await handleChangeModel(intent, question);
       } else {
@@ -226,4 +255,36 @@ async function handleChangeModel(
   } else {
     renderCancelled();
   }
+}
+
+async function handleReview(
+  ctx: Context,
+  intent: IntentReview,
+  question: (prompt: string) => Promise<string>,
+): Promise<void> {
+  const worker = findOtherWorker(ctx.registry, intent.workerName);
+  if (!worker) {
+    renderError(`Unknown worker "${intent.workerName}"`);
+    return;
+  }
+
+  const targetDir = workerDir(ctx.cwd, ctx.project, worker);
+  const branch = `${ctx.userName}/review-${intent.workerName}-${intent.branchName}`;
+
+  renderTask(`Review ${worker.name} (${worker.userType}): ${intent.task}`, branch);
+
+  const confirm = (await question(promptQuestion("Proceed? (Y/n) "))).trim().toLowerCase();
+  if (confirm === "n") {
+    logAction("review_cancelled");
+    renderCancelled();
+    return;
+  }
+
+  renderPreparingBranch(branch);
+  prepareGitBranch(targetDir, branch);
+  renderBranchReady(branch);
+
+  spawnTab(`review-${intent.workerName}`, intent.task, targetDir);
+  logAction(`review_tab dir=${targetDir} branch=${branch} worker=${intent.workerName}`);
+  renderTabCreated();
 }

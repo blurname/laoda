@@ -88,37 +88,76 @@ export function sanitizeBranchName(raw: string): string {
     .slice(0, 50);
 }
 
-export async function classifyIntent(input: string): Promise<Intent> {
+export async function classifyIntent(input: string, workerNames: string[] = []): Promise<Intent> {
+  const workerCtx =
+    workerNames.length > 0
+      ? `\nKnown team members: ${workerNames.join(", ")}. If the user mentions one of them, it's a review intent.`
+      : "";
+
   const raw = await chat(
     [
       {
         role: "system",
         content: `You are an intent classifier for a CLI tool. Classify user input into one of these intents and return ONLY valid JSON:
 
-1. User wants to execute a coding task → {"type":"task","task":"<original task>","branchName":"<kebab-case-short-name>"}
+1. User wants to execute a coding task (for themselves) → {"type":"task","task":"<original task>","branchName":"<kebab-case-short-name>"}
    - branchName: lowercase kebab-case, max 5 words, no prefix like feat/fix
 
-2. User wants to change/switch the LLM model → {"type":"change_model","query":"<search keyword>"}
+2. User wants to review/improve someone else's code → {"type":"review","workerName":"<person name>","task":"<what to review/improve>","branchName":"<kebab-case-short-name>"}
+   - This applies when user mentions reviewing, checking, improving, or fixing someone's work
+   - workerName must be the person's name (lowercase)
+   - branchName: lowercase kebab-case, max 5 words${workerCtx}
+
+3. User wants to change/switch the LLM model → {"type":"change_model","query":"<search keyword>"}
    - Extract the model name or keyword they want to search for
    - If no specific model mentioned, use empty string as query
 
-3. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
+4. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
 
 Return ONLY the JSON object, no markdown fences, no extra text.`,
       },
       { role: "user", content: input },
     ],
-    150,
+    200,
   );
 
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   try {
     const parsed = JSON.parse(json);
-    if (parsed.type === "task") {
+    if (parsed.type === "task" || parsed.type === "review") {
       parsed.branchName = sanitizeBranchName(parsed.branchName || "");
     }
     return parsed as Intent;
   } catch {
     return { type: "unknown", message: `Failed to parse LLM response: ${raw}` };
+  }
+}
+
+import type { UserType } from "./types.ts";
+
+export async function classifyUnregistered(
+  folderNames: string[],
+): Promise<{ name: string; userType: UserType }[]> {
+  if (folderNames.length === 0) return [];
+
+  const raw = await chat(
+    [
+      {
+        role: "system",
+        content: `You are classifying workspace folder suffixes. Each suffix is a person's short name.
+For each name, guess if they are a "designer" or "product" person.
+Return a JSON array: [{"name":"<suffix>","userType":"designer"|"product"}]
+Return ONLY the JSON array, no markdown fences, no extra text.`,
+      },
+      { role: "user", content: folderNames.join(", ") },
+    ],
+    200,
+  );
+
+  const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  try {
+    return JSON.parse(json) as { name: string; userType: UserType }[];
+  } catch {
+    return folderNames.map((name) => ({ name, userType: "designer" as UserType }));
   }
 }
