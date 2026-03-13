@@ -11,7 +11,7 @@ import type { WorkerRegistry, OtherWorker } from "./types.ts";
 
 describe("workerFolderName", () => {
   it("names MyWorker with numeric suffix", () => {
-    expect(workerFolderName("luv-sic", { type: "my", index: 1 })).toBe("luv-sic-1");
+    expect(workerFolderName("luv-sic", { type: "my", index: 1, status: "idle" })).toBe("luv-sic-1");
   });
 
   it("names OtherWorker with name suffix", () => {
@@ -47,7 +47,7 @@ describe("findUnregistered", () => {
   const base: WorkerRegistry = {
     project: "luv-sic",
     workers: [
-      { type: "my", index: 1 },
+      { type: "my", index: 1, status: "idle" },
       { type: "other", name: "zar", userType: "designer" },
     ],
     updatedAt: 0,
@@ -70,7 +70,7 @@ describe("findOtherWorker", () => {
   const registry: WorkerRegistry = {
     project: "luv-sic",
     workers: [
-      { type: "my", index: 1 },
+      { type: "my", index: 1, status: "idle" },
       { type: "other", name: "zar", userType: "designer" },
       { type: "other", name: "cws", userType: "product" },
     ],
@@ -103,8 +103,8 @@ describe("findNextMyWorkerIndex", () => {
       findNextMyWorkerIndex({
         project: "p",
         workers: [
-          { type: "my", index: 1 },
-          { type: "my", index: 3 },
+          { type: "my", index: 1, status: "idle" },
+          { type: "my", index: 3, status: "idle" },
         ],
         updatedAt: 0,
       }),
@@ -127,9 +127,9 @@ describe("getOtherWorkerNames", () => {
     const registry: WorkerRegistry = {
       project: "p",
       workers: [
-        { type: "my", index: 1 },
+        { type: "my", index: 1, status: "idle" },
         { type: "other", name: "zar", userType: "designer" },
-        { type: "my", index: 2 },
+        { type: "my", index: 2, status: "idle" },
         { type: "other", name: "cws", userType: "product" },
       ],
       updatedAt: 0,
@@ -140,7 +140,7 @@ describe("getOtherWorkerNames", () => {
   it("returns empty for no OtherWorkers", () => {
     const registry: WorkerRegistry = {
       project: "p",
-      workers: [{ type: "my", index: 1 }],
+      workers: [{ type: "my", index: 1, status: "idle" }],
       updatedAt: 0,
     };
     expect(getOtherWorkerNames(registry)).toEqual([]);

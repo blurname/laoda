@@ -1,8 +1,13 @@
 // ─── Worker ───
 
+export type MyWorkerStatus = "idle" | "busy";
+
 export type MyWorker = {
   type: "my";
   index: number;
+  status: MyWorkerStatus;
+  task?: string;
+  branch?: string;
 };
 
 export type UserType = "designer" | "product";

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 
 import { join } from "path";
 import { homedir } from "os";
 import type { Worker, WorkerRegistry, WorkerFolder, MyWorker, OtherWorker } from "./types.ts";
+import { isGitClean } from "./workspace.ts";
 
 const WORKERS_DIR = join(homedir(), ".local", "share", "laoda", "workers");
 
@@ -135,7 +136,7 @@ export function reconcileRegistry(
         (w): w is MyWorker => w.type === "my" && w.index === classified.index,
       );
       if (!exists) {
-        registry.workers.push({ type: "my", index: classified.index });
+        registry.workers.push({ type: "my", index: classified.index, status: "idle" });
       }
     }
   }
@@ -162,4 +163,50 @@ export function reconcileRegistry(
 
 export function getOtherWorkerNames(registry: WorkerRegistry): string[] {
   return registry.workers.filter((w): w is OtherWorker => w.type === "other").map((w) => w.name);
+}
+
+// ─── MyWorker allocation ───
+
+export type AllocResult =
+  | { action: "reuse"; worker: MyWorker; path: string }
+  | { action: "create"; index: number };
+
+export function allocateMyWorker(cwd: string, registry: WorkerRegistry): AllocResult {
+  const myWorkers = registry.workers.filter((w): w is MyWorker => w.type === "my");
+
+  // 1. Check logically idle workers, verify with git clean
+  for (const w of myWorkers) {
+    if (w.status === "idle") {
+      const path = workerDir(cwd, registry.project, w);
+      if (existsSync(path) && isGitClean(path)) {
+        return { action: "reuse", worker: w, path };
+      }
+    }
+  }
+
+  // 2. All logically busy — physical scan to find any that are actually done
+  for (const w of myWorkers) {
+    if (w.status === "busy") {
+      const path = workerDir(cwd, registry.project, w);
+      if (existsSync(path) && isGitClean(path)) {
+        w.status = "idle";
+        return { action: "reuse", worker: w, path };
+      }
+    }
+  }
+
+  // 3. All truly busy — need a new slot
+  return { action: "create", index: findNextMyWorkerIndex(registry) };
+}
+
+export function markWorkerBusy(worker: MyWorker, task: string, branch: string): void {
+  worker.status = "busy";
+  worker.task = task;
+  worker.branch = branch;
+}
+
+export function markWorkerIdle(worker: MyWorker): void {
+  worker.status = "idle";
+  worker.task = undefined;
+  worker.branch = undefined;
 }

@@ -1,10 +1,10 @@
 import { spawnTab } from "../zellij.ts";
-import { findReusableFolder } from "../workspace.ts";
 import { findEnvFiles, prepareGitBranch } from "../git.ts";
 import { duplicateFolder } from "@laoda/capability";
 import { logAction } from "../logger.ts";
 import type { IntentTask } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
+import { allocateMyWorker, markWorkerBusy, saveRegistry } from "../worker.ts";
 import {
   renderTask,
   renderReuse,
@@ -32,17 +32,30 @@ export async function handleTask(
     return;
   }
 
-  const reusable = findReusableFolder(ctx.cwd);
+  const alloc = allocateMyWorker(ctx.cwd, ctx.registry);
   let targetDir: string;
-  if (reusable) {
-    targetDir = reusable;
-    renderReuse(reusable);
+
+  if (alloc.action === "reuse") {
+    targetDir = alloc.path;
+    renderReuse(targetDir);
+    markWorkerBusy(alloc.worker, intent.task, branch);
   } else {
     renderDuplicating();
     const envFiles = findEnvFiles(ctx.cwd);
     targetDir = duplicateFolder(ctx.cwd, envFiles);
     renderDuplicated(targetDir);
+
+    const newWorker = {
+      type: "my" as const,
+      index: alloc.index,
+      status: "busy" as const,
+      task: intent.task,
+      branch,
+    };
+    ctx.registry.workers.push(newWorker);
   }
+
+  saveRegistry(ctx.registry);
 
   renderPreparingBranch(branch);
   prepareGitBranch(targetDir, branch);
