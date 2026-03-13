@@ -43,6 +43,10 @@ export type Context = {
   registry: WorkerRegistry;
 };
 
+// ─── Shared fn types ───
+
+export type QuestionFn = (prompt: string) => Promise<string>;
+
 // ─── Effect ───
 
 export type Effect =
