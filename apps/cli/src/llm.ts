@@ -137,7 +137,7 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
   try {
     const parsed = JSON.parse(json);
     if (parsed.type === "task" || parsed.type === "review") {
-      parsed.branchName = sanitizeBranchName(parsed.branchName || "");
+      return { ...parsed, branchName: sanitizeBranchName(parsed.branchName || "") } as Intent;
     }
     return parsed as Intent;
   } catch {

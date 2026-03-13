@@ -48,7 +48,6 @@ export function runCli(): void {
   setLogProject(project);
   setMemoProject(project);
   const registry = loadRegistry(project);
-  const ctx: Context = { cwd, userName: "", project, registry };
 
   rl.on("SIGINT", () => {
     process.stdout.write("\n");
@@ -65,23 +64,26 @@ export function runCli(): void {
     });
   }
 
-  async function setup(): Promise<void> {
-    renderProject(ctx.project);
-
+  async function askUserName(): Promise<string> {
     const savedName = getName();
     if (savedName) {
-      ctx.userName = savedName;
       renderUser(savedName);
-    } else {
-      console.log();
-      while (!ctx.userName) {
-        const name = (await question(promptQuestion("Your name (for branch prefix): "))).trim();
-        if (name) {
-          ctx.userName = name;
-          setName(name);
-        }
-      }
+      return savedName;
     }
+    console.log();
+    let name = "";
+    while (!name) {
+      name = (await question(promptQuestion("Your name (for branch prefix): "))).trim();
+    }
+    setName(name);
+    return name;
+  }
+
+  async function setup(): Promise<void> {
+    renderProject(project);
+
+    const userName = await askUserName();
+    const ctx: Context = { cwd, userName, project, registry };
 
     if (!getOpenRouterKey()) {
       console.log();
@@ -129,18 +131,19 @@ export function runCli(): void {
     }
 
     renderModel(getModel());
-    loop();
+    loop(ctx);
   }
 
-  async function loop(): Promise<void> {
+  async function loop(ctx: Context): Promise<void> {
     console.log();
     const input = (await question(promptPrefix())).trim();
     if (!input) {
-      loop();
+      loop(ctx);
       return;
     }
 
     logUserInput(input);
+    let nextCtx = ctx;
     try {
       const cached = memoLookup(input);
       let intent;
@@ -155,11 +158,11 @@ export function runCli(): void {
       logIntent(intent);
 
       if (intent.type === "task") {
-        await handleTask(ctx, intent, question);
+        nextCtx = await handleTask(ctx, intent, question);
       } else if (intent.type === "review") {
         await handleReview(ctx, intent, question);
       } else if (intent.type === "manage_workers") {
-        await handleManageWorkers(ctx, question);
+        nextCtx = await handleManageWorkers(ctx, question);
       } else if (intent.type === "change_model") {
         await handleChangeModel(intent, question);
       } else {
@@ -170,7 +173,7 @@ export function runCli(): void {
       renderError(e.message);
     }
 
-    loop();
+    loop(nextCtx);
   }
 
   setup();

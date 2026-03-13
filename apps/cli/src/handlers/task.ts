@@ -27,7 +27,7 @@ export async function handleTask(
   ctx: Context,
   intent: IntentTask,
   question: QuestionFn,
-): Promise<void> {
+): Promise<Context> {
   const branch = `${ctx.userName}/${intent.branchName}`;
   renderTask(intent.task, branch);
 
@@ -35,21 +35,21 @@ export async function handleTask(
   if (confirm === "n") {
     logAction("task_cancelled");
     renderCancelled();
-    return;
+    return ctx;
   }
 
   const alloc = allocateMyWorker(ctx.cwd, ctx.registry);
   let targetDir: string;
+  let newRegistry: typeof ctx.registry;
 
   if (alloc.action === "reuse") {
     targetDir = alloc.path;
     renderReuse(targetDir);
     const busyWorker = makeWorkerBusy(alloc.worker, intent.task, branch);
-    // Find the original worker in registry (by index) to replace
     const original = ctx.registry.workers.find(
       (w) => w.type === "my" && w.index === alloc.worker.index,
     );
-    ctx.registry = original ? replaceWorker(ctx.registry, original, busyWorker) : ctx.registry;
+    newRegistry = original ? replaceWorker(ctx.registry, original, busyWorker) : ctx.registry;
   } else {
     renderDuplicating();
     const envFiles = findEnvFiles(ctx.cwd);
@@ -63,10 +63,10 @@ export async function handleTask(
       task: intent.task,
       branch,
     };
-    ctx.registry = addWorker(ctx.registry, newWorker);
+    newRegistry = addWorker(ctx.registry, newWorker);
   }
 
-  saveRegistry(ctx.registry);
+  saveRegistry(newRegistry);
 
   renderPreparingBranch(branch);
   prepareGitBranch(targetDir, branch);
@@ -75,4 +75,6 @@ export async function handleTask(
   spawnTab(intent.branchName, intent.task, targetDir);
   logAction(`tab_created dir=${targetDir} branch=${branch}`);
   renderTabCreated();
+
+  return { ...ctx, registry: newRegistry };
 }

@@ -123,18 +123,10 @@ export function memoSave(input: string, intent: Intent): void {
     }
   }
 
-  store.entries.push({
-    input,
-    bucket,
-    tokens,
-    intent,
-    createdAt: Date.now(),
-  });
+  const newEntries = [
+    ...store.entries,
+    { input, bucket, tokens, intent, createdAt: Date.now() },
+  ].slice(-MAX_ENTRIES);
 
-  // Evict oldest if over limit
-  if (store.entries.length > MAX_ENTRIES) {
-    store.entries = store.entries.slice(-MAX_ENTRIES);
-  }
-
-  saveStore(store);
+  saveStore({ entries: newEntries });
 }

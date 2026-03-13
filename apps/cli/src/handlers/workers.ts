@@ -11,7 +11,7 @@ import {
 } from "../worker.ts";
 import { renderInfo, renderSuccess, renderCancelled, promptQuestion } from "../render.ts";
 
-export async function handleManageWorkers(ctx: Context, question: QuestionFn): Promise<void> {
+export async function handleManageWorkers(ctx: Context, question: QuestionFn): Promise<Context> {
   const otherNames = getOtherWorkerNames(ctx.registry);
   const physicalFolders = scanSiblingFolders(ctx.cwd, ctx.project);
   const unregistered = findUnregistered(ctx.registry, physicalFolders).filter(
@@ -36,22 +36,23 @@ export async function handleManageWorkers(ctx: Context, question: QuestionFn): P
   const pick = (await question(promptQuestion("Pick: "))).trim();
 
   if (pick === "1") {
-    await handleAddWorker(ctx, question);
+    return handleAddWorker(ctx, question);
   } else if (pick === "2") {
-    await handleRemoveWorker(ctx, otherNames, question);
+    return handleRemoveWorker(ctx, otherNames, question);
   } else {
     renderCancelled();
+    return ctx;
   }
 }
 
-async function handleAddWorker(ctx: Context, question: QuestionFn): Promise<void> {
+async function handleAddWorker(ctx: Context, question: QuestionFn): Promise<Context> {
   const name = (await question(promptQuestion("Worker name (lowercase): "))).trim().toLowerCase();
-  if (!name) return;
+  if (!name) return ctx;
 
   const existing = findOtherWorker(ctx.registry, name);
   if (existing) {
     renderInfo(`"${name}" already registered as ${existing.userType}`);
-    return;
+    return ctx;
   }
 
   console.log("  1. designer");
@@ -59,20 +60,21 @@ async function handleAddWorker(ctx: Context, question: QuestionFn): Promise<void
   const typePick = (await question(promptQuestion("Type: "))).trim();
   const userType: UserType = typePick === "2" ? "product" : "designer";
 
-  ctx.registry = addWorkerToRegistry(ctx.registry, { type: "other", name, userType });
-  saveRegistry(ctx.registry);
+  const newRegistry = addWorkerToRegistry(ctx.registry, { type: "other", name, userType });
+  saveRegistry(newRegistry);
   logAction(`worker_added name=${name} userType=${userType}`);
   renderSuccess(`Added ${name} (${userType})`);
+  return { ...ctx, registry: newRegistry };
 }
 
 async function handleRemoveWorker(
   ctx: Context,
   otherNames: string[],
   question: QuestionFn,
-): Promise<void> {
+): Promise<Context> {
   if (otherNames.length === 0) {
     renderInfo("No workers to remove");
-    return;
+    return ctx;
   }
 
   console.log();
@@ -84,12 +86,13 @@ async function handleRemoveWorker(
   const idx = parseInt((await question(promptQuestion("Pick number to remove: "))).trim()) - 1;
   if (idx < 0 || idx >= otherNames.length) {
     renderCancelled();
-    return;
+    return ctx;
   }
 
   const removeName = otherNames[idx]!;
-  ctx.registry = removeWorkerByName(ctx.registry, removeName);
-  saveRegistry(ctx.registry);
+  const newRegistry = removeWorkerByName(ctx.registry, removeName);
+  saveRegistry(newRegistry);
   logAction(`worker_removed name=${removeName}`);
   renderSuccess(`Removed ${removeName}`);
+  return { ...ctx, registry: newRegistry };
 }

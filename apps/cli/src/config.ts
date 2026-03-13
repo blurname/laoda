@@ -40,9 +40,7 @@ export function getName(): string | undefined {
 }
 
 export function setName(name: string): void {
-  const config = loadConfig();
-  config.name = name;
-  saveConfig(config);
+  saveConfig({ ...loadConfig(), name });
 }
 
 export function getOpenRouterKey(): string | undefined {
@@ -50,9 +48,7 @@ export function getOpenRouterKey(): string | undefined {
 }
 
 export function setOpenRouterKey(key: string): void {
-  const config = loadConfig();
-  config.openrouterKey = key;
-  saveConfig(config);
+  saveConfig({ ...loadConfig(), openrouterKey: key });
 }
 
 export function getModel(): string {
@@ -60,9 +56,7 @@ export function getModel(): string {
 }
 
 export function setModel(model: string): void {
-  const config = loadConfig();
-  config.model = model;
-  saveConfig(config);
+  saveConfig({ ...loadConfig(), model });
 }
 
 export function getModelsCacheDate(): string | undefined {
@@ -72,9 +66,7 @@ export function getModelsCacheDate(): string | undefined {
 export function saveModelsCache(models: { id: string; name: string }[]): void {
   ensureDir();
   writeFileSync(MODELS_CACHE_PATH, JSON.stringify(models), "utf-8");
-  const config = loadConfig();
-  config.modelsCacheDate = new Date().toISOString().slice(0, 10);
-  saveConfig(config);
+  saveConfig({ ...loadConfig(), modelsCacheDate: new Date().toISOString().slice(0, 10) });
 }
 
 export function loadModelsCache(): { id: string; name: string }[] {

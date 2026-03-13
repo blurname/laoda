@@ -28,8 +28,8 @@ export function saveRegistry(registry: WorkerRegistry): void {
   if (!existsSync(WORKERS_DIR)) {
     mkdirSync(WORKERS_DIR, { recursive: true });
   }
-  registry.updatedAt = Date.now();
-  writeFileSync(registryPath(registry.project), JSON.stringify(registry, null, 2), "utf-8");
+  const updated = { ...registry, updatedAt: Date.now() };
+  writeFileSync(registryPath(updated.project), JSON.stringify(updated, null, 2), "utf-8");
 }
 
 // ─── Folder naming ───
