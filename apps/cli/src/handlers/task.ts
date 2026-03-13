@@ -4,7 +4,13 @@ import { duplicateFolder } from "@laoda/capability";
 import { logAction } from "../logger.ts";
 import type { IntentTask } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
-import { allocateMyWorker, markWorkerBusy, saveRegistry } from "../worker.ts";
+import {
+  allocateMyWorker,
+  makeWorkerBusy,
+  replaceWorker,
+  addWorker,
+  saveRegistry,
+} from "../worker.ts";
 import {
   renderTask,
   renderReuse,
@@ -38,7 +44,12 @@ export async function handleTask(
   if (alloc.action === "reuse") {
     targetDir = alloc.path;
     renderReuse(targetDir);
-    markWorkerBusy(alloc.worker, intent.task, branch);
+    const busyWorker = makeWorkerBusy(alloc.worker, intent.task, branch);
+    // Find the original worker in registry (by index) to replace
+    const original = ctx.registry.workers.find(
+      (w) => w.type === "my" && w.index === alloc.worker.index,
+    );
+    ctx.registry = original ? replaceWorker(ctx.registry, original, busyWorker) : ctx.registry;
   } else {
     renderDuplicating();
     const envFiles = findEnvFiles(ctx.cwd);
@@ -52,7 +63,7 @@ export async function handleTask(
       task: intent.task,
       branch,
     };
-    ctx.registry.workers.push(newWorker);
+    ctx.registry = addWorker(ctx.registry, newWorker);
   }
 
   saveRegistry(ctx.registry);

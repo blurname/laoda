@@ -6,6 +6,8 @@ import {
   findUnregistered,
   findOtherWorker,
   getOtherWorkerNames,
+  addWorker as addWorkerToRegistry,
+  removeWorkerByName,
 } from "../worker.ts";
 import { renderInfo, renderSuccess, renderCancelled, promptQuestion } from "../render.ts";
 
@@ -34,15 +36,15 @@ export async function handleManageWorkers(ctx: Context, question: QuestionFn): P
   const pick = (await question(promptQuestion("Pick: "))).trim();
 
   if (pick === "1") {
-    await addWorker(ctx, question);
+    await handleAddWorker(ctx, question);
   } else if (pick === "2") {
-    await removeWorker(ctx, otherNames, question);
+    await handleRemoveWorker(ctx, otherNames, question);
   } else {
     renderCancelled();
   }
 }
 
-async function addWorker(ctx: Context, question: QuestionFn): Promise<void> {
+async function handleAddWorker(ctx: Context, question: QuestionFn): Promise<void> {
   const name = (await question(promptQuestion("Worker name (lowercase): "))).trim().toLowerCase();
   if (!name) return;
 
@@ -57,13 +59,13 @@ async function addWorker(ctx: Context, question: QuestionFn): Promise<void> {
   const typePick = (await question(promptQuestion("Type: "))).trim();
   const userType: UserType = typePick === "2" ? "product" : "designer";
 
-  ctx.registry.workers.push({ type: "other", name, userType });
+  ctx.registry = addWorkerToRegistry(ctx.registry, { type: "other", name, userType });
   saveRegistry(ctx.registry);
   logAction(`worker_added name=${name} userType=${userType}`);
   renderSuccess(`Added ${name} (${userType})`);
 }
 
-async function removeWorker(
+async function handleRemoveWorker(
   ctx: Context,
   otherNames: string[],
   question: QuestionFn,
@@ -86,9 +88,7 @@ async function removeWorker(
   }
 
   const removeName = otherNames[idx]!;
-  ctx.registry.workers = ctx.registry.workers.filter(
-    (w) => !(w.type === "other" && w.name === removeName),
-  );
+  ctx.registry = removeWorkerByName(ctx.registry, removeName);
   saveRegistry(ctx.registry);
   logAction(`worker_removed name=${removeName}`);
   renderSuccess(`Removed ${removeName}`);

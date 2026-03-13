@@ -128,37 +128,32 @@ export function reconcileRegistry(
   const physicalFolders = scanSiblingFolders(cwd, registry.project);
 
   // Add numeric folders as MyWorkers
-  for (const folder of physicalFolders) {
-    const classified = classifyFolderSuffix(registry.project, folder);
-    if (!classified) continue;
-    if (classified.type === "numeric") {
-      const exists = registry.workers.some(
-        (w): w is MyWorker => w.type === "my" && w.index === classified.index,
-      );
-      if (!exists) {
-        registry.workers.push({ type: "my", index: classified.index, status: "idle" });
-      }
-    }
-  }
+  const numericToAdd: Worker[] = physicalFolders
+    .map((folder) => classifyFolderSuffix(registry.project, folder))
+    .filter((c): c is { type: "numeric"; index: number } => c !== null && c.type === "numeric")
+    .filter(
+      (c) => !registry.workers.some((w): w is MyWorker => w.type === "my" && w.index === c.index),
+    )
+    .map((c): MyWorker => ({ type: "my", index: c.index, status: "idle" }));
 
   // Add named folders as OtherWorkers (using LLM classification)
-  for (const nw of newWorkers) {
-    const exists = registry.workers.some(
-      (w): w is OtherWorker => w.type === "other" && w.name === nw.name,
-    );
-    if (!exists) {
-      registry.workers.push({ type: "other", name: nw.name, userType: nw.userType });
-    }
-  }
+  const namedToAdd: Worker[] = newWorkers
+    .filter(
+      (nw) =>
+        !registry.workers.some((w): w is OtherWorker => w.type === "other" && w.name === nw.name),
+    )
+    .map((nw): OtherWorker => ({ type: "other", name: nw.name, userType: nw.userType }));
+
+  const allWorkers = [...registry.workers, ...numericToAdd, ...namedToAdd];
 
   // Remove workers whose folders no longer exist
   const folderSet = new Set(physicalFolders);
-  registry.workers = registry.workers.filter((w) => {
+  const filteredWorkers = allWorkers.filter((w) => {
     const name = workerFolderName(registry.project, w);
     return folderSet.has(name);
   });
 
-  return registry;
+  return { ...registry, workers: filteredWorkers };
 }
 
 export function getOtherWorkerNames(registry: WorkerRegistry): string[] {
@@ -189,8 +184,7 @@ export function allocateMyWorker(cwd: string, registry: WorkerRegistry): AllocRe
     if (w.status === "busy") {
       const path = workerDir(cwd, registry.project, w);
       if (existsSync(path) && isGitClean(path)) {
-        w.status = "idle";
-        return { action: "reuse", worker: w, path };
+        return { action: "reuse", worker: { ...w, status: "idle" }, path };
       }
     }
   }
@@ -199,14 +193,34 @@ export function allocateMyWorker(cwd: string, registry: WorkerRegistry): AllocRe
   return { action: "create", index: findNextMyWorkerIndex(registry) };
 }
 
-export function markWorkerBusy(worker: MyWorker, task: string, branch: string): void {
-  worker.status = "busy";
-  worker.task = task;
-  worker.branch = branch;
+export function makeWorkerBusy(worker: MyWorker, task: string, branch: string): MyWorker {
+  return { ...worker, status: "busy", task, branch };
 }
 
-export function markWorkerIdle(worker: MyWorker): void {
-  worker.status = "idle";
-  worker.task = undefined;
-  worker.branch = undefined;
+export function makeWorkerIdle(worker: MyWorker): MyWorker {
+  return { ...worker, status: "idle", task: undefined, branch: undefined };
+}
+
+// ─── Immutable registry updates ───
+
+export function replaceWorker(
+  registry: WorkerRegistry,
+  oldWorker: Worker,
+  newWorker: Worker,
+): WorkerRegistry {
+  return {
+    ...registry,
+    workers: registry.workers.map((w) => (w === oldWorker ? newWorker : w)),
+  };
+}
+
+export function addWorker(registry: WorkerRegistry, worker: Worker): WorkerRegistry {
+  return { ...registry, workers: [...registry.workers, worker] };
+}
+
+export function removeWorkerByName(registry: WorkerRegistry, name: string): WorkerRegistry {
+  return {
+    ...registry,
+    workers: registry.workers.filter((w) => !(w.type === "other" && w.name === name)),
+  };
 }

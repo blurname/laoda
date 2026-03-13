@@ -14,7 +14,7 @@ vi.mock("./workspace.ts", async (importOriginal) => {
 
 import { existsSync } from "fs";
 import { isGitClean } from "./workspace.ts";
-import { allocateMyWorker, markWorkerBusy } from "./worker.ts";
+import { allocateMyWorker, makeWorkerBusy } from "./worker.ts";
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockIsGitClean = vi.mocked(isGitClean);
@@ -124,23 +124,23 @@ describe("allocateMyWorker - multi-PR simulation", () => {
   });
 
   it("full flow: 3 tasks sequentially, worker-1 finishes mid-way", () => {
-    const registry = makeRegistry();
+    let registry = makeRegistry();
 
     // --- Task A: "add dark mode" ---
     const r1 = allocateMyWorker("/home/user/cool-oss", registry);
     expect(r1).toEqual({ action: "create", index: 1 });
     const w1: MyWorker = { type: "my", index: 1, status: "idle" };
-    registry.workers.push(w1);
-    markWorkerBusy(w1, "add dark mode", "bl/add-dark-mode");
-    expect(w1.status).toBe("busy");
+    const busyW1 = makeWorkerBusy(w1, "add dark mode", "bl/add-dark-mode");
+    expect(busyW1.status).toBe("busy");
+    registry = { ...registry, workers: [...registry.workers, busyW1] };
 
     // --- Task B: "fix pagination" (worker-1 still busy) ---
     mockIsGitClean.mockReturnValue(false);
     const r2 = allocateMyWorker("/home/user/cool-oss", registry);
     expect(r2).toEqual({ action: "create", index: 2 });
     const w2: MyWorker = { type: "my", index: 2, status: "idle" };
-    registry.workers.push(w2);
-    markWorkerBusy(w2, "fix pagination", "bl/fix-pagination");
+    const busyW2 = makeWorkerBusy(w2, "fix pagination", "bl/fix-pagination");
+    registry = { ...registry, workers: [...registry.workers, busyW2] };
 
     // --- Task C: "add search" (worker-1 done, worker-2 still busy) ---
     mockIsGitClean.mockImplementation((dir: string) => dir.endsWith("cool-oss-1"));
@@ -152,14 +152,15 @@ describe("allocateMyWorker - multi-PR simulation", () => {
       expect(r3.path).toContain("cool-oss-1");
     }
 
-    // After reuse, mark busy again
-    markWorkerBusy(w1, "add search", "bl/add-search");
-    expect(w1.status).toBe("busy");
-    expect(w1.task).toBe("add search");
+    // After reuse, mark busy again (immutable)
+    const busyW1Again = makeWorkerBusy(w1, "add search", "bl/add-search");
+    expect(busyW1Again.status).toBe("busy");
+    expect(busyW1Again.task).toBe("add search");
+
+    // Original w1 unchanged (immutable)
+    expect(w1.status).toBe("idle");
 
     // --- Verify final state ---
     expect(registry.workers).toHaveLength(2);
-    expect(w1.status).toBe("busy");
-    expect(w2.status).toBe("busy");
   });
 });
