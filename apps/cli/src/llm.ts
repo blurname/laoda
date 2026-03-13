@@ -19,12 +19,21 @@ export type IntentChangeModel = {
   query: string;
 };
 
+export type IntentManageWorkers = {
+  type: "manage_workers";
+};
+
 export type IntentUnknown = {
   type: "unknown";
   message: string;
 };
 
-export type Intent = IntentTask | IntentReview | IntentChangeModel | IntentUnknown;
+export type Intent =
+  | IntentTask
+  | IntentReview
+  | IntentChangeModel
+  | IntentManageWorkers
+  | IntentUnknown;
 
 type OpenRouterModel = {
   id: string;
@@ -108,11 +117,14 @@ export async function classifyIntent(input: string, workerNames: string[] = []):
    - workerName must be the person's name (lowercase)
    - branchName: lowercase kebab-case, max 5 words${workerCtx}
 
-3. User wants to change/switch the LLM model → {"type":"change_model","query":"<search keyword>"}
+3. User wants to manage/organize/add/remove team workers → {"type":"manage_workers"}
+   - e.g. "manage workers", "add worker", "整理 worker", "团队管理"
+
+4. User wants to change/switch the LLM model → {"type":"change_model","query":"<search keyword>"}
    - Extract the model name or keyword they want to search for
    - If no specific model mentioned, use empty string as query
 
-4. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
+5. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
 
 Return ONLY the JSON object, no markdown fences, no extra text.`,
       },
@@ -130,34 +142,5 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
     return parsed as Intent;
   } catch {
     return { type: "unknown", message: `Failed to parse LLM response: ${raw}` };
-  }
-}
-
-import type { UserType } from "./types.ts";
-
-export async function classifyUnregistered(
-  folderNames: string[],
-): Promise<{ name: string; userType: UserType }[]> {
-  if (folderNames.length === 0) return [];
-
-  const raw = await chat(
-    [
-      {
-        role: "system",
-        content: `You are classifying workspace folder suffixes. Each suffix is a person's short name.
-For each name, guess if they are a "designer" or "product" person.
-Return a JSON array: [{"name":"<suffix>","userType":"designer"|"product"}]
-Return ONLY the JSON array, no markdown fences, no extra text.`,
-      },
-      { role: "user", content: folderNames.join(", ") },
-    ],
-    200,
-  );
-
-  const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
-  try {
-    return JSON.parse(json) as { name: string; userType: UserType }[];
-  } catch {
-    return folderNames.map((name) => ({ name, userType: "designer" as UserType }));
   }
 }

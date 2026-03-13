@@ -15,19 +15,19 @@ import {
   loadModelsCache,
 } from "./src/config.ts";
 import type { IntentTask, IntentChangeModel, IntentReview } from "./src/llm.ts";
-import { classifyIntent, classifyUnregistered, fetchModels } from "./src/llm.ts";
+import { classifyIntent, fetchModels } from "./src/llm.ts";
 import { setLogProject, logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
 import { setMemoProject, memoLookup, memoSave } from "./src/memo.ts";
-import type { Context } from "./src/types.ts";
+import type { Context, UserType } from "./src/types.ts";
 import {
   loadRegistry,
   saveRegistry,
   scanSiblingFolders,
   findUnregistered,
-  reconcileRegistry,
   findOtherWorker,
   workerDir,
   getOtherWorkerNames,
+  resolveWorkerFolders,
 } from "./src/worker.ts";
 import {
   renderBanner,
@@ -119,19 +119,21 @@ export function runCli(): void {
       }
     }
 
-    // Reconcile worker registry with physical folders
+    // Lightweight worker check: warn about missing/unregistered folders
+    const workerFolders = resolveWorkerFolders(ctx.cwd, ctx.registry);
+    const missing = workerFolders.filter((wf) => !wf.exists && wf.worker.type === "other");
+    for (const wf of missing) {
+      const name = wf.worker.type === "other" ? wf.worker.name : String(wf.worker.type);
+      renderInfo(`Worker "${name}" folder missing: ${wf.path}`);
+    }
+
     const physicalFolders = scanSiblingFolders(ctx.cwd, ctx.project);
     const unregistered = findUnregistered(ctx.registry, physicalFolders);
     const unregisteredNamed = unregistered.filter((u) => !/^\d+$/.test(u));
     if (unregisteredNamed.length > 0) {
-      renderFetching(`Classifying ${unregisteredNamed.length} new worker(s)...`);
-      const classified = await classifyUnregistered(unregisteredNamed);
-      ctx.registry = reconcileRegistry(ctx.registry, ctx.cwd, classified);
-      saveRegistry(ctx.registry);
-      renderSuccess(`Workers synced (${ctx.registry.workers.length} total)`);
-    } else if (unregistered.length > 0) {
-      ctx.registry = reconcileRegistry(ctx.registry, ctx.cwd, []);
-      saveRegistry(ctx.registry);
+      renderInfo(
+        `Unregistered folders: ${unregisteredNamed.join(", ")} (say "manage workers" to register)`,
+      );
     }
 
     const otherNames = getOtherWorkerNames(ctx.registry);
@@ -169,6 +171,8 @@ export function runCli(): void {
         await handleTask(ctx, intent, question);
       } else if (intent.type === "review") {
         await handleReview(ctx, intent, question);
+      } else if (intent.type === "manage_workers") {
+        await handleManageWorkers(ctx, question);
       } else if (intent.type === "change_model") {
         await handleChangeModel(intent, question);
       } else {
@@ -287,4 +291,80 @@ async function handleReview(
   spawnTab(`review-${intent.workerName}`, intent.task, targetDir);
   logAction(`review_tab dir=${targetDir} branch=${branch} worker=${intent.workerName}`);
   renderTabCreated();
+}
+
+async function handleManageWorkers(
+  ctx: Context,
+  question: (prompt: string) => Promise<string>,
+): Promise<void> {
+  const otherNames = getOtherWorkerNames(ctx.registry);
+  const physicalFolders = scanSiblingFolders(ctx.cwd, ctx.project);
+  const unregistered = findUnregistered(ctx.registry, physicalFolders).filter(
+    (u) => !/^\d+$/.test(u),
+  );
+
+  console.log();
+  if (otherNames.length > 0) {
+    renderSuccess(`Registered: ${otherNames.join(", ")}`);
+  } else {
+    renderInfo("No workers registered");
+  }
+  if (unregistered.length > 0) {
+    renderInfo(`Unregistered folders: ${unregistered.join(", ")}`);
+  }
+
+  console.log();
+  console.log("  1. Add worker");
+  console.log("  2. Remove worker");
+  console.log("  3. Cancel");
+
+  const pick = (await question(promptQuestion("Pick: "))).trim();
+
+  if (pick === "1") {
+    const name = (await question(promptQuestion("Worker name (lowercase): "))).trim().toLowerCase();
+    if (!name) return;
+
+    const existing = findOtherWorker(ctx.registry, name);
+    if (existing) {
+      renderInfo(`"${name}" already registered as ${existing.userType}`);
+      return;
+    }
+
+    console.log("  1. designer");
+    console.log("  2. product");
+    const typePick = (await question(promptQuestion("Type: "))).trim();
+    const userType: UserType = typePick === "2" ? "product" : "designer";
+
+    ctx.registry.workers.push({ type: "other", name, userType });
+    saveRegistry(ctx.registry);
+    logAction(`worker_added name=${name} userType=${userType}`);
+    renderSuccess(`Added ${name} (${userType})`);
+  } else if (pick === "2") {
+    if (otherNames.length === 0) {
+      renderInfo("No workers to remove");
+      return;
+    }
+
+    console.log();
+    for (let i = 0; i < otherNames.length; i++) {
+      const w = findOtherWorker(ctx.registry, otherNames[i]!);
+      console.log(`  ${i + 1}. ${otherNames[i]} (${w?.userType})`);
+    }
+
+    const idx = parseInt((await question(promptQuestion("Pick number to remove: "))).trim()) - 1;
+    if (idx < 0 || idx >= otherNames.length) {
+      renderCancelled();
+      return;
+    }
+
+    const removeName = otherNames[idx]!;
+    ctx.registry.workers = ctx.registry.workers.filter(
+      (w) => !(w.type === "other" && w.name === removeName),
+    );
+    saveRegistry(ctx.registry);
+    logAction(`worker_removed name=${removeName}`);
+    renderSuccess(`Removed ${removeName}`);
+  } else {
+    renderCancelled();
+  }
 }
