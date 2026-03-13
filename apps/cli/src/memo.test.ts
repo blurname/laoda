@@ -1,8 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
-import { tokenize, getBucket, tokenSimilarity, memoLookup, memoSave, setMemoProject } from "./memo.ts";
+import { describe, it, expect, beforeEach } from "vitest";
+import {
+  tokenize,
+  getBucket,
+  tokenSimilarity,
+  memoLookup,
+  memoSave,
+  setMemoProject,
+} from "./memo.ts";
 import type { Intent } from "./llm.ts";
 
 describe("tokenize", () => {
@@ -80,13 +84,6 @@ describe("memoLookup / memoSave integration", () => {
     setMemoProject(testProject);
   });
 
-  afterEach(() => {
-    // Clean up test memo files
-    const memoDir = join(tmpdir(), ".laoda-test-memo");
-    if (existsSync(memoDir)) {
-      rmSync(memoDir, { recursive: true });
-    }
-  });
 
   it("returns null when no entries exist", () => {
     expect(memoLookup("add a new feature")).toBeNull();

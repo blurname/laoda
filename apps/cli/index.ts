@@ -19,6 +19,7 @@ import { classifyIntent, fetchModels } from "./src/llm.ts";
 import { setLogProject, logUserInput, logIntent, logAction, logError } from "./src/logger.ts";
 import { setMemoProject, memoLookup, memoSave } from "./src/memo.ts";
 import type { Context } from "./src/types.ts";
+import { loadRegistry } from "./src/worker.ts";
 import {
   renderBanner,
   renderProject,
@@ -51,7 +52,8 @@ export function runCli(): void {
   const project = getProjectName(cwd);
   setLogProject(project);
   setMemoProject(project);
-  const ctx: Context = { cwd, userName: "", project };
+  const registry = loadRegistry(project);
+  const ctx: Context = { cwd, userName: "", project, registry };
 
   rl.on("SIGINT", () => {
     process.stdout.write("\n");
@@ -136,6 +138,8 @@ export function runCli(): void {
 
       if (intent.type === "task") {
         await handleTask(ctx, intent, question);
+      } else if (intent.type === "review") {
+        renderInfo("review: not yet implemented");
       } else if (intent.type === "change_model") {
         await handleChangeModel(intent, question);
       } else {

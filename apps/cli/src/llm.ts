@@ -7,6 +7,13 @@ export type IntentTask = {
   branchName: string;
 };
 
+export type IntentReview = {
+  type: "review";
+  workerName: string;
+  task: string;
+  branchName: string;
+};
+
 export type IntentChangeModel = {
   type: "change_model";
   query: string;
@@ -17,7 +24,7 @@ export type IntentUnknown = {
   message: string;
 };
 
-export type Intent = IntentTask | IntentChangeModel | IntentUnknown;
+export type Intent = IntentTask | IntentReview | IntentChangeModel | IntentUnknown;
 
 type OpenRouterModel = {
   id: string;
