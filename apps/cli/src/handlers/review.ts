@@ -3,14 +3,15 @@ import { prepareGitBranch } from "../git.ts";
 import { logAction } from "../logger.ts";
 import type { IntentReview } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
-import { findOtherWorker, workerDir } from "../worker.ts";
+import { findOtherWorker, workerDir, addWorker, saveRegistry } from "../worker.ts";
 import {
   renderTask,
   renderPreparingBranch,
   renderBranchReady,
   renderTabCreated,
   renderCancelled,
-  renderError,
+  renderInfo,
+  renderSuccess,
   promptQuestion,
 } from "../render.ts";
 
@@ -18,15 +19,32 @@ export async function handleReview(
   ctx: Context,
   intent: IntentReview,
   question: QuestionFn,
-): Promise<void> {
-  const worker = findOtherWorker(ctx.registry, intent.workerName);
+): Promise<Context> {
+  let currentCtx = ctx;
+  let worker = findOtherWorker(ctx.registry, intent.workerName);
+
   if (!worker) {
-    renderError(`Unknown worker "${intent.workerName}"`);
-    return;
+    renderInfo(`"${intent.workerName}" is not registered. Register as ${intent.workerRole}?`);
+    const confirm = (await question(promptQuestion("(Y/n) "))).trim().toLowerCase();
+    if (confirm === "n") {
+      renderCancelled();
+      return ctx;
+    }
+    const newWorker = {
+      type: "other" as const,
+      name: intent.workerName,
+      userType: intent.workerRole,
+    };
+    const newRegistry = addWorker(ctx.registry, newWorker);
+    saveRegistry(newRegistry);
+    logAction(`worker_auto_added name=${intent.workerName} userType=${intent.workerRole}`);
+    renderSuccess(`Registered ${intent.workerName} (${intent.workerRole})`);
+    currentCtx = { ...ctx, registry: newRegistry };
+    worker = newWorker;
   }
 
-  const targetDir = workerDir(ctx.cwd, ctx.project, worker);
-  const branch = `${ctx.userName}/review-${intent.workerName}-${intent.branchName}`;
+  const targetDir = workerDir(currentCtx.cwd, currentCtx.project, worker);
+  const branch = `${currentCtx.userName}/review-${intent.workerName}-${intent.branchName}`;
 
   renderTask(`Review ${worker.name} (${worker.userType}): ${intent.task}`, branch);
 
@@ -34,7 +52,7 @@ export async function handleReview(
   if (confirm === "n") {
     logAction("review_cancelled");
     renderCancelled();
-    return;
+    return currentCtx;
   }
 
   renderPreparingBranch(branch);
@@ -44,4 +62,5 @@ export async function handleReview(
   spawnTab(`review-${intent.workerName}`, intent.task, targetDir);
   logAction(`review_tab dir=${targetDir} branch=${branch} worker=${intent.workerName}`);
   renderTabCreated();
+  return currentCtx;
 }

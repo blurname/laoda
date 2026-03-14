@@ -163,7 +163,7 @@ export function runCli(): void {
       if (intent.type === "task") {
         nextCtx = await handleTask(ctx, intent, question);
       } else if (intent.type === "review") {
-        await handleReview(ctx, intent, question);
+        nextCtx = await handleReview(ctx, intent, question);
       } else if (intent.type === "manage_workers") {
         nextCtx = await handleManageWorkers(ctx, question);
       } else if (intent.type === "change_model") {

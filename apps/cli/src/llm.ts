@@ -10,6 +10,7 @@ export type IntentTask = {
 export type IntentReview = {
   type: "review";
   workerName: string;
+  workerRole: "designer" | "product";
   task: string;
   branchName: string;
 };
@@ -121,9 +122,10 @@ export async function classifyIntent(input: string, workerNames: string[] = []):
 1. User wants to execute a coding task (for themselves) → {"type":"task","task":"<original task>","branchName":"<kebab-case-short-name>"}
    - branchName: lowercase kebab-case, max 5 words, no prefix like feat/fix
 
-2. User wants to review/improve someone else's code → {"type":"review","workerName":"<person name>","task":"<what to review/improve>","branchName":"<kebab-case-short-name>"}
+2. User wants to review/improve someone else's code → {"type":"review","workerName":"<person name>","workerRole":"<designer|product>","task":"<what to review/improve>","branchName":"<kebab-case-short-name>"}
    - This applies when user mentions reviewing, checking, improving, or fixing someone's work
    - workerName must be the person's name (lowercase)
+   - workerRole: infer from context — "designer" for designers/UI/UX, "product" for product managers. Default to "designer" if unclear
    - branchName: lowercase kebab-case, max 5 words${workerCtx}
 
 3. User wants to manage/organize/add/remove team workers → {"type":"manage_workers"}
