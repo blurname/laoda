@@ -110,15 +110,13 @@ export async function classifyIntent(input: string, workerNames: string[] = []):
       ? `\nKnown team members: ${workerNames.join(", ")}. If the user mentions one of them, it's a review intent.`
       : "";
 
-  const {
-    content: raw,
-    model,
-    rawBody,
-  } = await chat(
-    [
-      {
-        role: "system",
-        content: `You are an intent classifier for a CLI tool. Classify user input into one of these intents and return ONLY valid JSON:
+  let result: ChatResult;
+  try {
+    result = await chat(
+      [
+        {
+          role: "system",
+          content: `You are an intent classifier for a CLI tool. Classify user input into one of these intents and return ONLY valid JSON:
 
 1. User wants to execute a coding task (for themselves) → {"type":"task","task":"<original task>","branchName":"<kebab-case-short-name>"}
    - branchName: lowercase kebab-case, max 5 words, no prefix like feat/fix
@@ -138,19 +136,30 @@ export async function classifyIntent(input: string, workerNames: string[] = []):
 5. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
 
 Return ONLY the JSON object, no markdown fences, no extra text.`,
-      },
-      { role: "user", content: input },
-    ],
-    200,
-  );
+        },
+        { role: "user", content: input },
+      ],
+      200,
+    );
+  } catch (e: any) {
+    return {
+      type: "unknown",
+      message: `[classifyIntent] ${e.message}\n  input: ${input}`,
+    };
+  }
+
+  const { content: raw, model, rawBody } = result;
 
   if (!raw) {
-    const debug = [
-      `model: ${model}`,
-      `choices: ${JSON.stringify((rawBody as any)?.choices)}`,
-      `full response: ${JSON.stringify(rawBody)}`,
-    ].join("\n  ");
-    return { type: "unknown", message: `LLM returned empty content\n  ${debug}` };
+    return {
+      type: "unknown",
+      message: [
+        `[classifyIntent] LLM returned empty content`,
+        `  input: ${input}`,
+        `  model: ${model}`,
+        `  response: ${JSON.stringify(rawBody)}`,
+      ].join("\n"),
+    };
   }
 
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
@@ -163,7 +172,12 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
   } catch {
     return {
       type: "unknown",
-      message: [`Failed to parse LLM JSON`, `  model: ${model}`, `  raw: ${raw}`].join("\n"),
+      message: [
+        `[classifyIntent] Failed to parse LLM JSON`,
+        `  input: ${input}`,
+        `  model: ${model}`,
+        `  raw: ${raw}`,
+      ].join("\n"),
     };
   }
 }
