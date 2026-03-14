@@ -145,6 +145,6 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
     }
     return parsed as Intent;
   } catch {
-    return { type: "unknown", message: `Failed to parse LLM response: ${raw}` };
+    return { type: "unknown", message: `Failed to parse LLM response:\n${raw || "(empty)"}` };
   }
 }
