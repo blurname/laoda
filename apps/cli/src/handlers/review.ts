@@ -1,3 +1,4 @@
+import { existsSync } from "fs";
 import { spawnTab } from "../zellij.ts";
 import { prepareGitBranch } from "../git.ts";
 import { logAction } from "../logger.ts";
@@ -10,6 +11,7 @@ import {
   renderBranchReady,
   renderTabCreated,
   renderCancelled,
+  renderError,
   renderInfo,
   renderSuccess,
   promptQuestion,
@@ -45,6 +47,12 @@ export async function handleReview(
   }
 
   const targetDir = workerDir(currentCtx.cwd, currentCtx.project, worker);
+
+  if (!existsSync(targetDir)) {
+    renderError(`Worker folder not found: ${targetDir}`);
+    return currentCtx;
+  }
+
   const branch = `${currentCtx.userName}/review-${intent.workerName}-${intent.branchName}`;
 
   renderTask(`Review ${worker.name} (${worker.userType}): ${intent.task}`, branch);
