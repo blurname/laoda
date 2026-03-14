@@ -9,7 +9,7 @@ export function getProjectName(cwd: string): string {
 
 export function isGitClean(dir: string): boolean {
   try {
-    const output = execSync("git diff --stat && git diff --cached --stat", {
+    const output = execSync("git status --porcelain", {
       cwd: dir,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
