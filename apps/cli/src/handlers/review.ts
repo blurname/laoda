@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
+import { copyFolder } from "@laoda/capability";
 import { spawnTab } from "../zellij.ts";
-import { prepareGitBranch } from "../git.ts";
+import { findEnvFiles, prepareGitBranch } from "../git.ts";
 import { logAction } from "../logger.ts";
 import type { IntentReview } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
@@ -11,7 +12,8 @@ import {
   renderBranchReady,
   renderTabCreated,
   renderCancelled,
-  renderError,
+  renderDuplicating,
+  renderDuplicated,
   renderInfo,
   renderSuccess,
   promptQuestion,
@@ -24,7 +26,7 @@ export async function handleReview(
 ): Promise<Context> {
   let currentCtx = ctx;
   let worker = findOtherWorker(ctx.registry, intent.workerName);
-  const role = role ?? "designer";
+  const role = intent.workerRole ?? "designer";
 
   if (!worker) {
     renderInfo(`"${intent.workerName}" is not registered. Register as ${role}?`);
@@ -49,8 +51,10 @@ export async function handleReview(
   const targetDir = workerDir(currentCtx.cwd, currentCtx.project, worker);
 
   if (!existsSync(targetDir)) {
-    renderError(`Worker folder not found: ${targetDir}`);
-    return currentCtx;
+    renderDuplicating();
+    const envFiles = findEnvFiles(currentCtx.cwd);
+    copyFolder(currentCtx.cwd, targetDir, envFiles);
+    renderDuplicated(targetDir);
   }
 
   const branch = `${currentCtx.userName}/review-${intent.workerName}-${intent.branchName}`;
