@@ -37,6 +37,7 @@ function makeCtx(workers: Context["registry"]["workers"] = []): Context {
     userName: "bl",
     project: "voyager",
     registry: { project: "voyager", workers, updatedAt: 0 },
+    agent: "claude",
     logAction: vi.fn(),
   };
 }
@@ -87,7 +88,12 @@ describe("handleReview", () => {
     );
 
     // Tab spawned with empty prompt
-    expect(spawnTab).toHaveBeenCalledWith("review-zar", "", expect.stringContaining("voyager-zar"));
+    expect(spawnTab).toHaveBeenCalledWith(
+      "review-zar",
+      "",
+      expect.stringContaining("voyager-zar"),
+      "claude",
+    );
   });
 
   it("skips registration when worker already registered", async () => {

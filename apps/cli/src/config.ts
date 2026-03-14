@@ -2,11 +2,14 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
+import type { AgentType } from "./types.ts";
+
 type LaodaConfig = {
   name?: string;
   openrouterKey?: string;
   model?: string;
   modelsCacheDate?: string;
+  agent?: AgentType;
 };
 
 const CONFIG_DIR = join(homedir(), ".local", "share", "laoda");
@@ -76,6 +79,14 @@ export function loadModelsCache(): { id: string; name: string }[] {
   } catch {
     return [];
   }
+}
+
+export function getAgent(): AgentType {
+  return loadConfig().agent || "claude";
+}
+
+export function setAgent(agent: AgentType): void {
+  saveConfig({ ...loadConfig(), agent });
 }
 
 export function isModelsCacheStale(): boolean {

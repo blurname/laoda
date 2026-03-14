@@ -40,6 +40,7 @@ function makeCtx(workers: Context["registry"]["workers"] = []): Context {
     userName: "bl",
     project: "cool-oss",
     registry: { project: "cool-oss", workers, updatedAt: 0 },
+    agent: "claude",
     logAction: vi.fn(),
   };
 }
@@ -74,6 +75,7 @@ describe("handleTask", () => {
       "add-dark-mode",
       "add dark mode",
       "/home/user/cool-oss-1",
+      "claude",
     );
     expect(saveRegistry).toHaveBeenCalled();
     expect(result.registry.workers).toHaveLength(1);

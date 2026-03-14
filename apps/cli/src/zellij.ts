@@ -2,11 +2,22 @@ import { execFileSync } from "child_process";
 import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import type { AgentType } from "./types.ts";
 
-export function spawnTab(title: string, prompt: string, cwd?: string): void {
-  const paneCommand = prompt
-    ? `pane command="bash" {\n      args "-ic" "claude \\"${prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}\\""\n    }`
-    : `pane command="claude"`;
+function buildPaneCommand(agent: AgentType, prompt: string): string {
+  if (!prompt) {
+    return agent === "cursor"
+      ? `pane command="cursor" {\n      args "agent"\n    }`
+      : `pane command="claude"`;
+  }
+
+  const escaped = prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const cmd = agent === "cursor" ? `cursor agent "${escaped}"` : `claude "${escaped}"`;
+  return `pane command="bash" {\n      args "-ic" "${cmd}"\n    }`;
+}
+
+export function spawnTab(title: string, prompt: string, cwd: string, agent: AgentType): void {
+  const paneCommand = buildPaneCommand(agent, prompt);
 
   const layout = `layout {
   default_tab_template {
@@ -15,7 +26,7 @@ export function spawnTab(title: string, prompt: string, cwd?: string): void {
     }
     children
   }
-  tab name="${title}" cwd="${cwd || process.cwd()}" {
+  tab name="${title}" cwd="${cwd}" {
     ${paneCommand}
   }
 }`;

@@ -19,6 +19,11 @@ export type IntentChangeModel = {
   query: string;
 };
 
+export type IntentChangeAgent = {
+  type: "change_agent";
+  agent: "claude" | "cursor";
+};
+
 export type IntentManageWorkers = {
   type: "manage_workers";
 };
@@ -32,6 +37,7 @@ export type Intent =
   | IntentTask
   | IntentReview
   | IntentChangeModel
+  | IntentChangeAgent
   | IntentManageWorkers
   | IntentUnknown;
 
@@ -143,7 +149,10 @@ export async function classifyIntent(
    - Extract the model name or keyword they want to search for
    - If no specific model mentioned, use empty string as query
 
-5. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
+5. User wants to switch the AI agent (claude/cursor) → {"type":"change_agent","agent":"<claude|cursor>"}
+   - e.g. "use cursor", "switch to claude", "用 cursor"
+
+6. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
 
 Return ONLY the JSON object, no markdown fences, no extra text.`,
         },

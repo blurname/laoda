@@ -39,6 +39,10 @@ export type WorkerFolder = {
   exists: boolean;
 };
 
+// ─── Agent ───
+
+export type AgentType = "claude" | "cursor";
+
 // ─── Logger ───
 
 export type LogFn = (action: string) => void;
@@ -50,6 +54,7 @@ export type Context = {
   userName: string;
   project: string;
   registry: WorkerRegistry;
+  agent: AgentType;
   logAction: LogFn;
 };
 

@@ -46,6 +46,7 @@ function makeCtx(workers: Context["registry"]["workers"] = []): Context {
     userName: "bl",
     project: "voyager",
     registry: { project: "voyager", workers, updatedAt: 0 },
+    agent: "claude",
     logAction: vi.fn(),
   };
 }

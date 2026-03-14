@@ -9,6 +9,8 @@ import {
   getOpenRouterKey,
   setOpenRouterKey,
   getModel,
+  getAgent,
+  setAgent,
   isModelsCacheStale,
   saveModelsCache,
 } from "./src/config.ts";
@@ -29,6 +31,7 @@ import {
   renderProject,
   renderUser,
   renderModel,
+  renderAgent,
   renderCached,
   renderThinking,
   renderInfo,
@@ -131,6 +134,7 @@ export function runCli(): void {
       userName,
       project,
       registry,
+      agent: getAgent(),
       logAction: (action) => logger.logAction(action),
     };
 
@@ -180,6 +184,7 @@ export function runCli(): void {
     }
 
     renderModel(getModel());
+    renderAgent(ctx.agent);
     loop(ctx);
   }
 
@@ -233,6 +238,10 @@ export function runCli(): void {
         nextCtx = await handleManageWorkers(ctx, question);
       } else if (intent.type === "change_model") {
         nextCtx = await handleChangeModel(ctx, intent, question);
+      } else if (intent.type === "change_agent") {
+        setAgent(intent.agent);
+        renderSuccess(`Agent set to ${intent.agent}`);
+        nextCtx = { ...ctx, agent: intent.agent };
       } else {
         renderInfo(`${intent.message}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`);
       }

@@ -27,6 +27,10 @@ export function renderModel(model: string): void {
   console.log(`  ${c.dim}Model: ${c.reset}${c.bold}${model}${c.reset}`);
 }
 
+export function renderAgent(agent: string): void {
+  console.log(`  ${c.dim}Agent: ${c.reset}${c.bold}${agent}${c.reset}`);
+}
+
 export function renderCached(): void {
   console.log(`  ${c.dim}(cached)${c.reset}`);
 }

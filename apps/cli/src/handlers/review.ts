@@ -43,7 +43,7 @@ export async function handleReview(
     steps.push(`Duplicate ${ctx.cwd} → ${targetDir}`);
   }
   steps.push(`Create branch ${branch}`);
-  steps.push(`Open tab: claude (no initial prompt)`);
+  steps.push(`Open tab: ${ctx.agent} (no initial prompt)`);
 
   renderInfo("Plan:");
   for (const step of steps) {
@@ -81,7 +81,7 @@ export async function handleReview(
   prepareGitBranch(targetDir, branch);
   renderBranchReady(branch);
 
-  spawnTab(`review-${intent.workerName}`, "", targetDir);
+  spawnTab(`review-${intent.workerName}`, "", targetDir, ctx.agent);
   ctx.logAction(`review_tab dir=${targetDir} branch=${branch} worker=${intent.workerName}`);
   renderTabCreated();
   return currentCtx;

@@ -39,7 +39,7 @@ export async function handleTask(
     steps.push(`Create worker-${alloc.index} (duplicate folder)`);
   }
   steps.push(`Create branch ${branch}`);
-  steps.push(`Open tab: claude "${intent.task}"`);
+  steps.push(`Open tab: ${ctx.agent} "${intent.task}"`);
 
   renderInfo("Plan:");
   for (const step of steps) {
@@ -88,7 +88,7 @@ export async function handleTask(
   prepareGitBranch(targetDir, branch);
   renderBranchReady(branch);
 
-  spawnTab(intent.branchName, intent.task, targetDir);
+  spawnTab(intent.branchName, intent.task, targetDir, ctx.agent);
   ctx.logAction(`tab_created dir=${targetDir} branch=${branch}`);
   renderTabCreated();
 
