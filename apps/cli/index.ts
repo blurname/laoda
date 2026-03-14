@@ -83,34 +83,56 @@ export function runCli(): void {
   });
 
   rl.on("close", () => {
+    process.stdout.write("\x1b[?2004l"); // disable bracketed paste mode
     console.log();
     process.exit(0);
   });
 
-  const PASTE_DELAY = 30;
+  // Bracketed paste: terminal wraps pasted text in \e[200~ ... \e[201~
+  // Intercept raw data to extract full paste content before readline splits it.
+  process.stdout.write("\x1b[?2004h"); // enable bracketed paste mode
+  let pastedContent: string | null = null;
+
+  process.stdin.on("data", (chunk: Buffer) => {
+    const s = chunk.toString();
+    const start = s.indexOf("\x1b[200~");
+    const end = s.indexOf("\x1b[201~");
+    if (start !== -1 && end !== -1) {
+      pastedContent = s.slice(start + 6, end);
+    }
+  });
 
   function ask(prompt: string): Promise<string> {
     return new Promise((resolve) => {
       process.stdin.resume();
-      const lines: string[] = [];
-      let timer: ReturnType<typeof setTimeout> | null = null;
-
-      const flush = (): void => {
-        rl.removeListener("line", onLine);
-        process.stdin.pause();
-        resolve(lines.join("\n"));
-      };
-
-      const onLine = (line: string): void => {
-        lines.push(line);
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(flush, PASTE_DELAY);
-      };
+      pastedContent = null;
 
       rl.question(prompt, (first) => {
-        lines.push(first);
-        rl.on("line", onLine);
-        timer = setTimeout(flush, PASTE_DELAY);
+        if (pastedContent !== null) {
+          const text = pastedContent;
+          pastedContent = null;
+          const extraLines = text.split(/\r?\n/).length - 1;
+
+          if (extraLines > 0) {
+            // Drain extra line events that readline fires for remaining paste lines
+            let drained = 0;
+            const drain = (): void => {
+              drained++;
+              if (drained >= extraLines) {
+                rl.removeListener("line", drain);
+                process.stdin.pause();
+                resolve(text);
+              }
+            };
+            rl.on("line", drain);
+          } else {
+            process.stdin.pause();
+            resolve(text);
+          }
+        } else {
+          process.stdin.pause();
+          resolve(first);
+        }
       });
     });
   }
