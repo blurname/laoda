@@ -26,6 +26,7 @@ export async function handlePr(
 
   const pick = (await question(promptQuestion("Pick (1): "))).trim() || "1";
 
+  const isOverride = pick === "2";
   const chosenMy = (pick === "1" && isMy) || (pick === "2" && !isMy);
 
   if (pick === "3") {
@@ -34,7 +35,10 @@ export async function handlePr(
   }
 
   if (chosenMy) {
-    saveAuthor(pr.author, { workType: "my" });
+    if (isOverride) {
+      saveAuthor(pr.author, { workType: "my" });
+      renderSuccess(`Saved: ${pr.author} → my work`);
+    }
     const intent: IntentTask = {
       type: "task",
       task: `Review PR #${pr.number}: ${pr.title}`,
@@ -43,8 +47,16 @@ export async function handlePr(
     logAction(`pr_as_task pr=${pr.number}`);
     return handleTask(ctx, intent, question);
   } else {
-    const role = getAuthorRole(pr.author);
-    saveAuthor(pr.author, { workType: "other", workerRole: role });
+    let role = getAuthorRole(pr.author);
+    if (isOverride) {
+      console.log();
+      console.log("  1. designer");
+      console.log("  2. product");
+      const rolePick = (await question(promptQuestion(`Role for ${pr.author} (1): `))).trim() || "1";
+      role = rolePick === "2" ? "product" : "designer";
+      saveAuthor(pr.author, { workType: "other", workerRole: role });
+      renderSuccess(`Saved: ${pr.author} → ${role}`);
+    }
     const intent: IntentReview = {
       type: "review",
       workerName: pr.author,
