@@ -8,7 +8,7 @@ export type PrInfo = {
   url: string;
 };
 
-const PR_URL_RE = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/;
+const PR_URL_RE = /https?:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/;
 
 export function parsePrUrl(input: string): { owner: string; repo: string; number: number } | null {
   const m = input.match(PR_URL_RE);
