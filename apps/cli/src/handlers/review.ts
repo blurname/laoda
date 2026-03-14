@@ -22,9 +22,10 @@ export async function handleReview(
 ): Promise<Context> {
   let currentCtx = ctx;
   let worker = findOtherWorker(ctx.registry, intent.workerName);
+  const role = role ?? "designer";
 
   if (!worker) {
-    renderInfo(`"${intent.workerName}" is not registered. Register as ${intent.workerRole}?`);
+    renderInfo(`"${intent.workerName}" is not registered. Register as ${role}?`);
     const confirm = (await question(promptQuestion("(Y/n) "))).trim().toLowerCase();
     if (confirm === "n") {
       renderCancelled();
@@ -33,12 +34,12 @@ export async function handleReview(
     const newWorker = {
       type: "other" as const,
       name: intent.workerName,
-      userType: intent.workerRole,
+      userType: role,
     };
     const newRegistry = addWorker(ctx.registry, newWorker);
     saveRegistry(newRegistry);
-    logAction(`worker_auto_added name=${intent.workerName} userType=${intent.workerRole}`);
-    renderSuccess(`Registered ${intent.workerName} (${intent.workerRole})`);
+    logAction(`worker_auto_added name=${intent.workerName} userType=${role}`);
+    renderSuccess(`Registered ${intent.workerName} (${role})`);
     currentCtx = { ...ctx, registry: newRegistry };
     worker = newWorker;
   }
