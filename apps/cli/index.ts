@@ -41,6 +41,8 @@ import { handleTask } from "./src/handlers/task.ts";
 import { handleReview } from "./src/handlers/review.ts";
 import { handleChangeModel } from "./src/handlers/model.ts";
 import { handleManageWorkers } from "./src/handlers/workers.ts";
+import { handlePr } from "./src/handlers/pr.ts";
+import { parsePrUrl, fetchPrInfo } from "./src/github.ts";
 
 export function runCli(): void {
   renderBanner();
@@ -186,6 +188,16 @@ export function runCli(): void {
     logUserInput(input);
     let nextCtx = ctx;
     try {
+      // PR URL shortcut — skip LLM
+      const prParsed = parsePrUrl(input);
+      if (prParsed) {
+        renderFetching(`Fetching PR #${prParsed.number}...`);
+        const pr = fetchPrInfo(prParsed.owner, prParsed.repo, prParsed.number);
+        nextCtx = await handlePr(ctx, pr, question);
+        loop(nextCtx);
+        return;
+      }
+
       const cached = memoLookup(input);
       let intent;
       if (cached) {
