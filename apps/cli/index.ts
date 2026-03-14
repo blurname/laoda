@@ -166,11 +166,12 @@ export function runCli(): void {
       } else if (intent.type === "change_model") {
         await handleChangeModel(intent, question);
       } else {
-        renderInfo(intent.message);
+        renderInfo(`${intent.message}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`);
       }
     } catch (e: any) {
-      logError(e.message);
-      renderError(e.message);
+      const msg = `${e.message}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`;
+      logError(msg);
+      renderError(msg);
     }
 
     loop(nextCtx);
