@@ -1,5 +1,4 @@
 import { getOpenRouterKey, getModel } from "./config.ts";
-import { logLlmRequest, logLlmResponse } from "./logger.ts";
 
 export type IntentTask = {
   type: "task";
@@ -62,14 +61,19 @@ type ChatResult = {
   rawBody: unknown;
 };
 
-async function chat(messages: ChatMessage[], maxTokens = 100): Promise<ChatResult> {
+export type LlmLog = {
+  request: (model: string, messages: unknown) => void;
+  response: (raw: string) => void;
+};
+
+async function chat(messages: ChatMessage[], maxTokens: number, log: LlmLog): Promise<ChatResult> {
   const key = getOpenRouterKey();
   if (!key) {
     throw new Error("OpenRouter key not set. Run laoda with --set-key <key>");
   }
 
   const model = getModel();
-  logLlmRequest(model, messages);
+  log.request(model, messages);
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -92,7 +96,7 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<ChatResul
 
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const content = (data.choices?.[0]?.message?.content ?? "").trim();
-  logLlmResponse(content || `[empty] raw=${JSON.stringify(data)}`);
+  log.response(content || `[empty] raw=${JSON.stringify(data)}`);
   return { content, model, rawBody: data };
 }
 
@@ -105,7 +109,11 @@ export function sanitizeBranchName(raw: string): string {
     .slice(0, 50);
 }
 
-export async function classifyIntent(input: string, workerNames: string[] = []): Promise<Intent> {
+export async function classifyIntent(
+  input: string,
+  workerNames: string[],
+  log: LlmLog,
+): Promise<Intent> {
   const workerCtx =
     workerNames.length > 0
       ? `\nKnown team members: ${workerNames.join(", ")}. If the user mentions one of them, it's a review intent.`
@@ -142,11 +150,12 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
         { role: "user", content: input },
       ],
       500,
+      log,
     );
-  } catch (e: any) {
+  } catch (e: unknown) {
     return {
       type: "unknown",
-      message: `[classifyIntent] ${e.message}\n  input: ${input}`,
+      message: `[classifyIntent] ${e instanceof Error ? e.message : String(e)}\n  input: ${input}`,
     };
   }
 

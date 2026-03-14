@@ -39,6 +39,10 @@ export type WorkerFolder = {
   exists: boolean;
 };
 
+// ─── Logger ───
+
+export type LogFn = (action: string) => void;
+
 // ─── Context ───
 
 export type Context = {
@@ -46,6 +50,7 @@ export type Context = {
   userName: string;
   project: string;
   registry: WorkerRegistry;
+  logAction: LogFn;
 };
 
 // ─── Shared fn types ───

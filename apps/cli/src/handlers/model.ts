@@ -1,7 +1,6 @@
 import { setModel, loadModelsCache } from "../config.ts";
-import { logAction } from "../logger.ts";
 import type { IntentChangeModel } from "../llm.ts";
-import type { QuestionFn } from "../types.ts";
+import type { Context, QuestionFn } from "../types.ts";
 import {
   renderInfo,
   renderSuccess,
@@ -11,13 +10,14 @@ import {
 } from "../render.ts";
 
 export async function handleChangeModel(
+  ctx: Context,
   intent: IntentChangeModel,
   question: QuestionFn,
-): Promise<void> {
+): Promise<Context> {
   let q = intent.query.trim().toLowerCase();
   if (!q) {
     q = (await question(promptQuestion("Search model: "))).trim().toLowerCase();
-    if (!q) return;
+    if (!q) return ctx;
   }
 
   const cached = loadModelsCache();
@@ -27,7 +27,7 @@ export async function handleChangeModel(
 
   if (matches.length === 0) {
     renderInfo(`No models matching "${intent.query}"`);
-    return;
+    return ctx;
   }
 
   console.log();
@@ -39,9 +39,10 @@ export async function handleChangeModel(
   const idx = parseInt(pick) - 1;
   if (idx >= 0 && idx < matches.length) {
     setModel(matches[idx]!.id);
-    logAction(`model_changed to=${matches[idx]!.id}`);
+    ctx.logAction(`model_changed to=${matches[idx]!.id}`);
     renderSuccess(`Model set to ${matches[idx]!.id}`);
   } else {
     renderCancelled();
   }
+  return ctx;
 }

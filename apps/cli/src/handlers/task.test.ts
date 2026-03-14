@@ -5,7 +5,6 @@ import type { IntentTask } from "../llm.ts";
 vi.mock("../zellij.ts", () => ({ spawnTab: vi.fn() }));
 vi.mock("../git.ts", () => ({ findEnvFiles: vi.fn(() => []), prepareGitBranch: vi.fn() }));
 vi.mock("@laoda/capability", () => ({ duplicateFolder: vi.fn(() => "/home/user/cool-oss-1") }));
-vi.mock("../logger.ts", () => ({ logAction: vi.fn() }));
 vi.mock("../render.ts", () => ({
   renderReuse: vi.fn(),
   renderDuplicating: vi.fn(),
@@ -41,6 +40,7 @@ function makeCtx(workers: Context["registry"]["workers"] = []): Context {
     userName: "bl",
     project: "cool-oss",
     registry: { project: "cool-oss", workers, updatedAt: 0 },
+    logAction: vi.fn(),
   };
 }
 
@@ -70,7 +70,11 @@ describe("handleTask", () => {
 
     expect(duplicateFolder).toHaveBeenCalledWith("/home/user/cool-oss", []);
     expect(prepareGitBranch).toHaveBeenCalled();
-    expect(spawnTab).toHaveBeenCalledWith("add-dark-mode", "add dark mode", "/home/user/cool-oss-1");
+    expect(spawnTab).toHaveBeenCalledWith(
+      "add-dark-mode",
+      "add dark mode",
+      "/home/user/cool-oss-1",
+    );
     expect(saveRegistry).toHaveBeenCalled();
     expect(result.registry.workers).toHaveLength(1);
     expect(result.registry.workers[0]).toMatchObject({
@@ -102,7 +106,9 @@ describe("handleTask", () => {
   it("creates new worker when existing is busy and dirty", async () => {
     mockQuestion.mockResolvedValueOnce("y");
     vi.mocked(isGitClean).mockReturnValue(false);
-    const ctx = makeCtx([{ type: "my", index: 1, status: "busy", task: "other", branch: "bl/other" }]);
+    const ctx = makeCtx([
+      { type: "my", index: 1, status: "busy", task: "other", branch: "bl/other" },
+    ]);
     const result = await handleTask(ctx, intent, mockQuestion);
 
     expect(duplicateFolder).toHaveBeenCalled();

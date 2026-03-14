@@ -13,8 +13,9 @@ import {
   saveModelsCache,
 } from "./src/config.ts";
 import { classifyIntent, fetchModels } from "./src/llm.ts";
-import { setLogProject, logUserInput, logIntent, logError } from "./src/logger.ts";
-import { setMemoProject, memoLookup, memoSave } from "./src/memo.ts";
+import type { Intent } from "./src/llm.ts";
+import { createLogger } from "./src/logger.ts";
+import { createMemo } from "./src/memo.ts";
 import type { Context } from "./src/types.ts";
 import {
   loadRegistry,
@@ -70,8 +71,8 @@ export function runCli(): void {
   });
   const cwd = process.cwd();
   const project = getProjectName(cwd);
-  setLogProject(project);
-  setMemoProject(project);
+  const logger = createLogger(project);
+  const memo = createMemo(project);
   const registry = loadRegistry(project);
 
   rl.on("SIGINT", () => {
@@ -125,7 +126,7 @@ export function runCli(): void {
     renderProject(project);
 
     const userName = await askUserName();
-    const ctx: Context = { cwd, userName, project, registry };
+    const ctx: Context = { cwd, userName, project, registry, logAction: logger.logAction };
 
     if (!getOpenRouterKey()) {
       console.log();
@@ -144,8 +145,8 @@ export function runCli(): void {
         const simplified = models.map((m) => ({ id: m.id, name: m.name }));
         saveModelsCache(simplified);
         renderSuccess(`${simplified.length} models cached`);
-      } catch (e: any) {
-        renderInfo(`Failed to fetch models: ${e.message}`);
+      } catch (e: unknown) {
+        renderInfo(`Failed to fetch models: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
@@ -176,6 +177,8 @@ export function runCli(): void {
     loop(ctx);
   }
 
+  const llmLog = { request: logger.logLlmRequest, response: logger.logLlmResponse };
+
   async function loop(ctx: Context): Promise<void> {
     console.log();
     const input = (await ask(promptPrefix())).trim();
@@ -185,7 +188,7 @@ export function runCli(): void {
       return;
     }
 
-    logUserInput(input);
+    logger.logUserInput(input);
     let nextCtx = ctx;
     try {
       // PR URL shortcut — skip LLM
@@ -198,20 +201,20 @@ export function runCli(): void {
         return;
       }
 
-      const cached = memoLookup(input);
+      const cached = memo.lookup(input);
       let intent;
       if (cached) {
         intent = cached;
         renderCached();
       } else {
         renderThinking();
-        intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry));
+        intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry), llmLog);
         const cacheable: Intent["type"][] = ["task", "review", "manage_workers"];
         if (cacheable.includes(intent.type)) {
-          memoSave(input, intent);
+          memo.save(input, intent);
         }
       }
-      logIntent(intent);
+      logger.logIntent(intent);
 
       if (intent.type === "task") {
         nextCtx = await handleTask(ctx, intent, question);
@@ -220,13 +223,13 @@ export function runCli(): void {
       } else if (intent.type === "manage_workers") {
         nextCtx = await handleManageWorkers(ctx, question);
       } else if (intent.type === "change_model") {
-        await handleChangeModel(intent, question);
+        nextCtx = await handleChangeModel(ctx, intent, question);
       } else {
         renderInfo(`${intent.message}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`);
       }
-    } catch (e: any) {
-      const msg = `${e.message}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`;
-      logError(msg);
+    } catch (e: unknown) {
+      const msg = `${e instanceof Error ? e.message : String(e)}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`;
+      logger.logError(msg);
       renderError(msg);
     }
 

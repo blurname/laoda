@@ -9,7 +9,6 @@ vi.mock("fs", async (importOriginal) => {
 vi.mock("@laoda/capability", () => ({ copyFolder: vi.fn() }));
 vi.mock("../zellij.ts", () => ({ spawnTab: vi.fn() }));
 vi.mock("../git.ts", () => ({ findEnvFiles: vi.fn(() => []), prepareGitBranch: vi.fn() }));
-vi.mock("../logger.ts", () => ({ logAction: vi.fn() }));
 vi.mock("../render.ts", () => ({
   renderDuplicating: vi.fn(),
   renderDuplicated: vi.fn(),
@@ -38,6 +37,7 @@ function makeCtx(workers: Context["registry"]["workers"] = []): Context {
     userName: "bl",
     project: "voyager",
     registry: { project: "voyager", workers, updatedAt: 0 },
+    logAction: vi.fn(),
   };
 }
 

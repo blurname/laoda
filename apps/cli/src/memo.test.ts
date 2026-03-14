@@ -1,12 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import {
-  tokenize,
-  getBucket,
-  tokenSimilarity,
-  memoLookup,
-  memoSave,
-  setMemoProject,
-} from "./memo.ts";
+import { describe, it, expect } from "vitest";
+import { tokenize, getBucket, tokenSimilarity, createMemo } from "./memo.ts";
 import type { Intent } from "./llm.ts";
 
 describe("tokenize", () => {
@@ -77,42 +70,39 @@ describe("tokenSimilarity", () => {
   });
 });
 
-describe("memoLookup / memoSave integration", () => {
+describe("memo lookup / save integration", () => {
   const testProject = `test-${Date.now()}`;
-
-  beforeEach(() => {
-    setMemoProject(testProject);
-  });
+  const memo = createMemo(testProject);
 
   it("returns null when no entries exist", () => {
-    expect(memoLookup("add a new feature")).toBeNull();
+    expect(memo.lookup("add a new feature")).toBeNull();
   });
 
   it("saves and retrieves matching intent", () => {
     const intent: Intent = { type: "task", task: "add login page", branchName: "add-login-page" };
-    memoSave("add login page", intent);
+    memo.save("add login page", intent);
 
     // Exact match
-    const result = memoLookup("add login page");
+    const result = memo.lookup("add login page");
     expect(result).toEqual(intent);
   });
 
   it("retrieves similar intent (high overlap)", () => {
     const intent: Intent = { type: "task", task: "add login page", branchName: "add-login-page" };
-    memoSave("add login page", intent);
+    memo.save("add login page", intent);
 
     // Similar enough (shares most tokens)
-    const result = memoLookup("add the login page");
+    const result = memo.lookup("add the login page");
     // 3/4 = 0.75 — below 0.8 threshold, should be null
     expect(result).toBeNull();
   });
 
   it("does not retrieve from different bucket", () => {
     const intent: Intent = { type: "task", task: "add login page", branchName: "add-login-page" };
-    memoSave("add login page", intent);
+    memo.save("add login page", intent);
 
     // Different bucket (fix vs add)
-    expect(memoLookup("fix login page")).toBeNull();
+    expect(memo.lookup("fix login page")).toBeNull();
   });
 
   it("does not store duplicates", () => {
@@ -122,11 +112,11 @@ describe("memoLookup / memoSave integration", () => {
       task: "add login page v2",
       branchName: "add-login-page-v2",
     };
-    memoSave("add login page", intent1);
-    memoSave("add login page", intent2);
+    memo.save("add login page", intent1);
+    memo.save("add login page", intent2);
 
     // Should still return the first one
-    const result = memoLookup("add login page");
+    const result = memo.lookup("add login page");
     expect(result).toEqual(intent1);
   });
 });

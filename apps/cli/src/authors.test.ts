@@ -54,9 +54,7 @@ describe("getAuthorWorkType", () => {
 
   it("returns stored workType when author is in file", () => {
     mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify({ alice: { workType: "my" } }),
-    );
+    mockReadFileSync.mockReturnValue(JSON.stringify({ alice: { workType: "my" } }));
     expect(getAuthorWorkType("alice", "bl")).toBe("my");
   });
 
@@ -76,9 +74,7 @@ describe("getAuthorRole", () => {
 
   it("defaults to designer when author has no workerRole", () => {
     mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify({ alice: { workType: "other" } }),
-    );
+    mockReadFileSync.mockReturnValue(JSON.stringify({ alice: { workType: "other" } }));
     expect(getAuthorRole("alice")).toBe("designer");
   });
 

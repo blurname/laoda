@@ -1,4 +1,3 @@
-import { logAction } from "../logger.ts";
 import type { PrInfo } from "../github.ts";
 import type { IntentTask, IntentReview } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
@@ -8,11 +7,7 @@ import { handleReview } from "./review.ts";
 import { sanitizeBranchName } from "../llm.ts";
 import { getAuthorWorkType, getAuthorRole, saveAuthor } from "../authors.ts";
 
-export async function handlePr(
-  ctx: Context,
-  pr: PrInfo,
-  question: QuestionFn,
-): Promise<Context> {
+export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): Promise<Context> {
   renderSuccess(`PR #${pr.number}: ${pr.title}`);
   renderInfo(`  by ${pr.author} → ${pr.branch}`);
 
@@ -44,7 +39,7 @@ export async function handlePr(
       task: `Review PR #${pr.number}: ${pr.title}`,
       branchName: sanitizeBranchName(`pr-${pr.number}-${pr.branch}`),
     };
-    logAction(`pr_as_task pr=${pr.number}`);
+    ctx.logAction(`pr_as_task pr=${pr.number}`);
     return handleTask(ctx, intent, question);
   } else {
     let role = getAuthorRole(pr.author);
@@ -52,7 +47,8 @@ export async function handlePr(
       console.log();
       console.log("  1. designer");
       console.log("  2. product");
-      const rolePick = (await question(promptQuestion(`Role for ${pr.author} (1): `))).trim() || "1";
+      const rolePick =
+        (await question(promptQuestion(`Role for ${pr.author} (1): `))).trim() || "1";
       role = rolePick === "2" ? "product" : "designer";
       saveAuthor(pr.author, { workType: "other", workerRole: role });
       renderSuccess(`Saved: ${pr.author} → ${role}`);
@@ -64,7 +60,7 @@ export async function handlePr(
       task: `Review PR #${pr.number}: ${pr.title}`,
       branchName: sanitizeBranchName(`pr-${pr.number}-${pr.branch}`),
     };
-    logAction(`pr_as_review pr=${pr.number} author=${pr.author}`);
+    ctx.logAction(`pr_as_review pr=${pr.number} author=${pr.author}`);
     return handleReview(ctx, intent, question);
   }
 }

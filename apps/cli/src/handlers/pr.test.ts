@@ -18,7 +18,6 @@ vi.mock("@laoda/capability", () => ({
 }));
 vi.mock("../zellij.ts", () => ({ spawnTab: vi.fn() }));
 vi.mock("../git.ts", () => ({ findEnvFiles: vi.fn(() => []), prepareGitBranch: vi.fn() }));
-vi.mock("../logger.ts", () => ({ logAction: vi.fn() }));
 vi.mock("../workspace.ts", () => ({ isGitClean: vi.fn(() => false) }));
 vi.mock("../render.ts", () => ({
   renderReuse: vi.fn(),
@@ -47,6 +46,7 @@ function makeCtx(workers: Context["registry"]["workers"] = []): Context {
     userName: "bl",
     project: "voyager",
     registry: { project: "voyager", workers, updatedAt: 0 },
+    logAction: vi.fn(),
   };
 }
 

@@ -2,7 +2,6 @@ import { existsSync } from "fs";
 import { copyFolder } from "@laoda/capability";
 import { spawnTab } from "../zellij.ts";
 import { findEnvFiles, prepareGitBranch } from "../git.ts";
-import { logAction } from "../logger.ts";
 import type { IntentReview } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
 import { findOtherWorker, workerDir, addWorker, saveRegistry } from "../worker.ts";
@@ -54,7 +53,7 @@ export async function handleReview(
 
   const confirm = (await question(promptQuestion("Execute? (Y/n) "))).trim().toLowerCase();
   if (confirm === "n") {
-    logAction("review_cancelled");
+    ctx.logAction("review_cancelled");
     renderCancelled();
     return ctx;
   }
@@ -66,7 +65,7 @@ export async function handleReview(
     const newWorker = { type: "other" as const, name: intent.workerName, userType: role };
     const newRegistry = addWorker(ctx.registry, newWorker);
     saveRegistry(newRegistry);
-    logAction(`worker_auto_added name=${intent.workerName} userType=${role}`);
+    ctx.logAction(`worker_auto_added name=${intent.workerName} userType=${role}`);
     renderSuccess(`Registered ${intent.workerName} (${role})`);
     currentCtx = { ...ctx, registry: newRegistry };
   }
@@ -83,7 +82,7 @@ export async function handleReview(
   renderBranchReady(branch);
 
   spawnTab(`review-${intent.workerName}`, "", targetDir);
-  logAction(`review_tab dir=${targetDir} branch=${branch} worker=${intent.workerName}`);
+  ctx.logAction(`review_tab dir=${targetDir} branch=${branch} worker=${intent.workerName}`);
   renderTabCreated();
   return currentCtx;
 }

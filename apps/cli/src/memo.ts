@@ -21,14 +21,8 @@ const MEMO_DIR = join(homedir(), ".local", "share", "laoda", "memo");
 const MAX_ENTRIES = 200;
 const SIMILARITY_THRESHOLD = 0.8;
 
-let currentProject = "";
-
-export function setMemoProject(project: string): void {
-  currentProject = project;
-}
-
-function getMemoPath(): string {
-  const dir = currentProject ? join(MEMO_DIR, currentProject) : MEMO_DIR;
+function getMemoPath(project: string): string {
+  const dir = project ? join(MEMO_DIR, project) : MEMO_DIR;
   return join(dir, "memo.json");
 }
 
@@ -77,8 +71,8 @@ export function tokenSimilarity(a: string[], b: string[]): number {
   return union === 0 ? 0 : intersection / union;
 }
 
-function loadStore(): MemoStore {
-  const path = getMemoPath();
+function loadStore(project: string): MemoStore {
+  const path = getMemoPath(project);
   if (!existsSync(path)) return { entries: [] };
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
@@ -87,8 +81,8 @@ function loadStore(): MemoStore {
   }
 }
 
-function saveStore(store: MemoStore): void {
-  const path = getMemoPath();
+function saveStore(project: string, store: MemoStore): void {
+  const path = getMemoPath(project);
   const dir = join(path, "..");
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
@@ -96,37 +90,48 @@ function saveStore(store: MemoStore): void {
   writeFileSync(path, JSON.stringify(store), "utf-8");
 }
 
-export function memoLookup(input: string): Intent | null {
-  const tokens = tokenize(input);
-  const bucket = getBucket(tokens);
-  const store = loadStore();
+export type Memo = {
+  lookup: (input: string) => Intent | null;
+  save: (input: string, intent: Intent) => void;
+};
 
-  for (const entry of store.entries) {
-    if (entry.bucket !== bucket) continue;
-    if (tokenSimilarity(tokens, entry.tokens) >= SIMILARITY_THRESHOLD) {
-      return entry.intent;
-    }
-  }
+export function createMemo(project: string): Memo {
+  return {
+    lookup(input: string): Intent | null {
+      const tokens = tokenize(input);
+      const bucket = getBucket(tokens);
+      const store = loadStore(project);
 
-  return null;
-}
+      for (const entry of store.entries) {
+        if (entry.bucket !== bucket) continue;
+        if (tokenSimilarity(tokens, entry.tokens) >= SIMILARITY_THRESHOLD) {
+          return entry.intent;
+        }
+      }
 
-export function memoSave(input: string, intent: Intent): void {
-  const tokens = tokenize(input);
-  const bucket = getBucket(tokens);
-  const store = loadStore();
+      return null;
+    },
 
-  // Don't store duplicates
-  for (const entry of store.entries) {
-    if (entry.bucket === bucket && tokenSimilarity(tokens, entry.tokens) >= SIMILARITY_THRESHOLD) {
-      return;
-    }
-  }
+    save(input: string, intent: Intent): void {
+      const tokens = tokenize(input);
+      const bucket = getBucket(tokens);
+      const store = loadStore(project);
 
-  const newEntries = [
-    ...store.entries,
-    { input, bucket, tokens, intent, createdAt: Date.now() },
-  ].slice(-MAX_ENTRIES);
+      for (const entry of store.entries) {
+        if (
+          entry.bucket === bucket &&
+          tokenSimilarity(tokens, entry.tokens) >= SIMILARITY_THRESHOLD
+        ) {
+          return;
+        }
+      }
 
-  saveStore({ entries: newEntries });
+      const newEntries = [
+        ...store.entries,
+        { input, bucket, tokens, intent, createdAt: Date.now() },
+      ].slice(-MAX_ENTRIES);
+
+      saveStore(project, { entries: newEntries });
+    },
+  };
 }

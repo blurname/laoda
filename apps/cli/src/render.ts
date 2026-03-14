@@ -35,13 +35,6 @@ export function renderThinking(): void {
   console.log(`  ${c.dim}Thinking...${c.reset}`);
 }
 
-export function renderTask(task: string, branch: string): void {
-  console.log();
-  console.log(`  ${c.bold}Task:${c.reset}   ${task}`);
-  console.log(`  ${c.bold}Branch:${c.reset} ${branch}`);
-  console.log();
-}
-
 export function renderReuse(path: string): void {
   console.log(`  ${c.yellow}↻${c.reset} Reusing ${c.bold}${path}${c.reset}`);
 }

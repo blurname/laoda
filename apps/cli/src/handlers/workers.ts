@@ -1,4 +1,3 @@
-import { logAction } from "../logger.ts";
 import type { Context, UserType, QuestionFn } from "../types.ts";
 import {
   saveRegistry,
@@ -62,7 +61,7 @@ async function handleAddWorker(ctx: Context, question: QuestionFn): Promise<Cont
 
   const newRegistry = addWorkerToRegistry(ctx.registry, { type: "other", name, userType });
   saveRegistry(newRegistry);
-  logAction(`worker_added name=${name} userType=${userType}`);
+  ctx.logAction(`worker_added name=${name} userType=${userType}`);
   renderSuccess(`Added ${name} (${userType})`);
   return { ...ctx, registry: newRegistry };
 }
@@ -92,7 +91,7 @@ async function handleRemoveWorker(
   const removeName = otherNames[idx]!;
   const newRegistry = removeWorkerByName(ctx.registry, removeName);
   saveRegistry(newRegistry);
-  logAction(`worker_removed name=${removeName}`);
+  ctx.logAction(`worker_removed name=${removeName}`);
   renderSuccess(`Removed ${removeName}`);
   return { ...ctx, registry: newRegistry };
 }
