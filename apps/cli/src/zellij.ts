@@ -4,7 +4,10 @@ import { join } from "path";
 import { tmpdir } from "os";
 
 export function spawnTab(title: string, prompt: string, cwd?: string): void {
-  const escapedPrompt = prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const paneCommand = prompt
+    ? `pane command="bash" {\n      args "-ic" "claude \\"${prompt.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}\\""\n    }`
+    : `pane command="claude"`;
+
   const layout = `layout {
   default_tab_template {
     pane size=1 borderless=true {
@@ -13,9 +16,7 @@ export function spawnTab(title: string, prompt: string, cwd?: string): void {
     children
   }
   tab name="${title}" cwd="${cwd || process.cwd()}" {
-    pane command="bash" {
-      args "-ic" "claude \\"${escapedPrompt}\\""
-    }
+    ${paneCommand}
   }
 }`;
 
