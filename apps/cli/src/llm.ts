@@ -55,7 +55,13 @@ type ChatMessage = {
   content: string;
 };
 
-async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
+type ChatResult = {
+  content: string;
+  model: string;
+  rawBody: unknown;
+};
+
+async function chat(messages: ChatMessage[], maxTokens = 100): Promise<ChatResult> {
   const key = getOpenRouterKey();
   if (!key) {
     throw new Error("OpenRouter key not set. Run laoda with --set-key <key>");
@@ -79,17 +85,14 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new Error(`OpenRouter API error: ${res.status} ${await res.text()}`);
+    const body = await res.text();
+    throw new Error(`[${model}] HTTP ${res.status}: ${body}`);
   }
 
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const content = (data.choices?.[0]?.message?.content ?? "").trim();
-  if (!content) {
-    logLlmResponse(`[empty response] raw=${JSON.stringify(data)}`);
-  } else {
-    logLlmResponse(content);
-  }
-  return content;
+  logLlmResponse(content || `[empty] raw=${JSON.stringify(data)}`);
+  return { content, model, rawBody: data };
 }
 
 export function sanitizeBranchName(raw: string): string {
@@ -107,7 +110,11 @@ export async function classifyIntent(input: string, workerNames: string[] = []):
       ? `\nKnown team members: ${workerNames.join(", ")}. If the user mentions one of them, it's a review intent.`
       : "";
 
-  const raw = await chat(
+  const {
+    content: raw,
+    model,
+    rawBody,
+  } = await chat(
     [
       {
         role: "system",
@@ -137,6 +144,15 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
     200,
   );
 
+  if (!raw) {
+    const debug = [
+      `model: ${model}`,
+      `choices: ${JSON.stringify((rawBody as any)?.choices)}`,
+      `full response: ${JSON.stringify(rawBody)}`,
+    ].join("\n  ");
+    return { type: "unknown", message: `LLM returned empty content\n  ${debug}` };
+  }
+
   const json = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
   try {
     const parsed = JSON.parse(json);
@@ -145,6 +161,9 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
     }
     return parsed as Intent;
   } catch {
-    return { type: "unknown", message: `Failed to parse LLM response:\n${raw || "(empty)"}` };
+    return {
+      type: "unknown",
+      message: [`Failed to parse LLM JSON`, `  model: ${model}`, `  raw: ${raw}`].join("\n"),
+    };
   }
 }
