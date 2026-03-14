@@ -1,20 +1,29 @@
-import { execFileSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { writeFileSync, unlinkSync, chmodSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import type { AgentType } from "./types.ts";
 
+function resolveCommand(agent: AgentType): string {
+  const name = agent === "cursor" ? "cursor" : "claude";
+  try {
+    return execSync(`which ${name}`, { encoding: "utf-8", stdio: "pipe" }).trim();
+  } catch {
+    return name;
+  }
+}
+
 function writeRunScript(agent: AgentType, prompt: string): string {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const scriptPath = join(tmpdir(), `laoda-run-${id}.sh`);
 
-  const cmd = agent === "cursor" ? "cursor agent" : "claude";
-  // Use login shell (-l) so PATH includes user-installed tools (claude, cursor)
+  const bin = resolveCommand(agent);
+  const cmd = agent === "cursor" ? `${bin} agent` : bin;
   let lines: string[];
   if (prompt) {
     // Embed prompt in a heredoc to avoid any shell escaping issues
     lines = [
-      "#!/bin/bash -l",
+      "#!/bin/bash",
       `PROMPT=$(cat <<'LAODA_EOF'`,
       prompt,
       "LAODA_EOF",
@@ -22,7 +31,7 @@ function writeRunScript(agent: AgentType, prompt: string): string {
       `exec ${cmd} "$PROMPT"`,
     ];
   } else {
-    lines = ["#!/bin/bash -l", `exec ${cmd}`];
+    lines = ["#!/bin/bash", `exec ${cmd}`];
   }
 
   writeFileSync(scriptPath, lines.join("\n") + "\n", "utf-8");
