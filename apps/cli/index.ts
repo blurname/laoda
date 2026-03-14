@@ -1,4 +1,7 @@
 import { createInterface } from "readline";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 import { getProjectName } from "./src/workspace.ts";
 import {
   getName,
@@ -42,7 +45,27 @@ import { handleManageWorkers } from "./src/handlers/workers.ts";
 export function runCli(): void {
   renderBanner();
 
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const historyDir = join(homedir(), ".local", "share", "laoda");
+  const historyPath = join(historyDir, "history");
+  const loadHistory = (): string[] => {
+    if (!existsSync(historyPath)) return [];
+    try {
+      return readFileSync(historyPath, "utf-8").split("\n").filter(Boolean);
+    } catch {
+      return [];
+    }
+  };
+  const saveHistory = (history: readonly string[]): void => {
+    if (!existsSync(historyDir)) mkdirSync(historyDir, { recursive: true });
+    writeFileSync(historyPath, history.slice(0, 500).join("\n"), "utf-8");
+  };
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    history: loadHistory(),
+    historySize: 500,
+  });
   const cwd = process.cwd();
   const project = getProjectName(cwd);
   setLogProject(project);
@@ -137,6 +160,7 @@ export function runCli(): void {
   async function loop(ctx: Context): Promise<void> {
     console.log();
     const input = (await question(promptPrefix())).trim();
+    if (input) saveHistory(rl.history ?? []);
     if (!input) {
       loop(ctx);
       return;
