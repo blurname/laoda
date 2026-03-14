@@ -153,7 +153,9 @@ export function runCli(): void {
       } else {
         renderThinking();
         intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry));
-        memoSave(input, intent);
+        if (intent.type !== "unknown") {
+          memoSave(input, intent);
+        }
       }
       logIntent(intent);
 
