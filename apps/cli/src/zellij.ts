@@ -9,40 +9,34 @@ function writeRunScript(agent: AgentType, prompt: string): string {
   const scriptPath = join(tmpdir(), `laoda-run-${id}.sh`);
 
   const cmd = agent === "cursor" ? "cursor agent" : "claude";
-  // Embed prompt in a heredoc to avoid any shell escaping issues
-  const lines = [
-    "#!/bin/bash",
-    `PROMPT=$(cat <<'LAODA_EOF'`,
-    prompt,
-    "LAODA_EOF",
-    ")",
-    `exec ${cmd} "$PROMPT"`,
-  ];
+  // Use login shell (-l) so PATH includes user-installed tools (claude, cursor)
+  let lines: string[];
+  if (prompt) {
+    // Embed prompt in a heredoc to avoid any shell escaping issues
+    lines = [
+      "#!/bin/bash -l",
+      `PROMPT=$(cat <<'LAODA_EOF'`,
+      prompt,
+      "LAODA_EOF",
+      ")",
+      `exec ${cmd} "$PROMPT"`,
+    ];
+  } else {
+    lines = ["#!/bin/bash -l", `exec ${cmd}`];
+  }
 
   writeFileSync(scriptPath, lines.join("\n") + "\n", "utf-8");
   chmodSync(scriptPath, 0o755);
   return scriptPath;
 }
 
-function buildPaneCommand(
-  agent: AgentType,
-  prompt: string,
-): { kdl: string; scriptPath: string | null } {
-  if (!prompt) {
-    const kdl =
-      agent === "cursor"
-        ? `pane command="cursor" {\n      args "agent"\n    }`
-        : `pane command="claude"`;
-    return { kdl, scriptPath: null };
-  }
-
+function buildPaneKdl(agent: AgentType, prompt: string): string {
   const scriptPath = writeRunScript(agent, prompt);
-  const kdl = `pane command="${scriptPath}"`;
-  return { kdl, scriptPath };
+  return `pane command="${scriptPath}"`;
 }
 
 export function spawnTab(title: string, prompt: string, cwd: string, agent: AgentType): void {
-  const { kdl: paneCommand } = buildPaneCommand(agent, prompt);
+  const paneCommand = buildPaneKdl(agent, prompt);
 
   const layout = `layout {
   default_tab_template {
