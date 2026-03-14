@@ -12,7 +12,6 @@ import {
   saveRegistry,
 } from "../worker.ts";
 import {
-  renderTask,
   renderReuse,
   renderDuplicating,
   renderDuplicated,
@@ -20,6 +19,7 @@ import {
   renderBranchReady,
   renderTabCreated,
   renderCancelled,
+  renderInfo,
   promptQuestion,
 } from "../render.ts";
 
@@ -29,16 +29,33 @@ export async function handleTask(
   question: QuestionFn,
 ): Promise<Context> {
   const branch = `${ctx.userName}/${intent.branchName}`;
-  renderTask(intent.task, branch);
+  const alloc = allocateMyWorker(ctx.cwd, ctx.registry);
 
-  const confirm = (await question(promptQuestion("Proceed? (Y/n) "))).trim().toLowerCase();
+  // ── Plan ──
+  console.log();
+  const steps: string[] = [];
+  if (alloc.action === "reuse") {
+    steps.push(`Reuse worker-${alloc.worker.index} (${alloc.path})`);
+  } else {
+    steps.push(`Create worker-${alloc.index} (duplicate folder)`);
+  }
+  steps.push(`Create branch ${branch}`);
+  steps.push(`Open tab: claude "${intent.task}"`);
+
+  renderInfo("Plan:");
+  for (const step of steps) {
+    console.log(`    ${step}`);
+  }
+  console.log();
+
+  const confirm = (await question(promptQuestion("Execute? (Y/n) "))).trim().toLowerCase();
   if (confirm === "n") {
     logAction("task_cancelled");
     renderCancelled();
     return ctx;
   }
 
-  const alloc = allocateMyWorker(ctx.cwd, ctx.registry);
+  // ── Execute ──
   let targetDir: string;
   let newRegistry: typeof ctx.registry;
 

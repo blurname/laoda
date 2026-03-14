@@ -7,13 +7,12 @@ import type { IntentReview } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
 import { findOtherWorker, workerDir, addWorker, saveRegistry } from "../worker.ts";
 import {
-  renderTask,
+  renderDuplicating,
+  renderDuplicated,
   renderPreparingBranch,
   renderBranchReady,
   renderTabCreated,
   renderCancelled,
-  renderDuplicating,
-  renderDuplicated,
   renderInfo,
   renderSuccess,
   promptQuestion,
@@ -24,48 +23,59 @@ export async function handleReview(
   intent: IntentReview,
   question: QuestionFn,
 ): Promise<Context> {
-  let currentCtx = ctx;
-  let worker = findOtherWorker(ctx.registry, intent.workerName);
+  const worker = findOtherWorker(ctx.registry, intent.workerName);
   const role = intent.workerRole ?? "designer";
+  const needsRegister = !worker;
+  const targetDir = workerDir(
+    ctx.cwd,
+    ctx.project,
+    worker ?? { type: "other", name: intent.workerName, userType: role },
+  );
+  const needsDuplicate = !existsSync(targetDir);
+  const branch = `${ctx.userName}/review-${intent.workerName}-${intent.branchName}`;
 
-  if (!worker) {
-    renderInfo(`"${intent.workerName}" is not registered. Register as ${role}?`);
-    const confirm = (await question(promptQuestion("(Y/n) "))).trim().toLowerCase();
-    if (confirm === "n") {
-      renderCancelled();
-      return ctx;
-    }
-    const newWorker = {
-      type: "other" as const,
-      name: intent.workerName,
-      userType: role,
-    };
+  // ── Plan ──
+  console.log();
+  const steps: string[] = [];
+  if (needsRegister) {
+    steps.push(`Register "${intent.workerName}" as ${role}`);
+  }
+  if (needsDuplicate) {
+    steps.push(`Duplicate ${ctx.cwd} → ${targetDir}`);
+  }
+  steps.push(`Create branch ${branch}`);
+  steps.push(`Open tab: claude "${intent.task}"`);
+
+  renderInfo("Plan:");
+  for (const step of steps) {
+    console.log(`    ${step}`);
+  }
+  console.log();
+
+  const confirm = (await question(promptQuestion("Execute? (Y/n) "))).trim().toLowerCase();
+  if (confirm === "n") {
+    logAction("review_cancelled");
+    renderCancelled();
+    return ctx;
+  }
+
+  // ── Execute ──
+  let currentCtx = ctx;
+
+  if (needsRegister) {
+    const newWorker = { type: "other" as const, name: intent.workerName, userType: role };
     const newRegistry = addWorker(ctx.registry, newWorker);
     saveRegistry(newRegistry);
     logAction(`worker_auto_added name=${intent.workerName} userType=${role}`);
     renderSuccess(`Registered ${intent.workerName} (${role})`);
     currentCtx = { ...ctx, registry: newRegistry };
-    worker = newWorker;
   }
 
-  const targetDir = workerDir(currentCtx.cwd, currentCtx.project, worker);
-
-  if (!existsSync(targetDir)) {
+  if (needsDuplicate) {
     renderDuplicating();
     const envFiles = findEnvFiles(currentCtx.cwd);
     copyFolder(currentCtx.cwd, targetDir, envFiles);
     renderDuplicated(targetDir);
-  }
-
-  const branch = `${currentCtx.userName}/review-${intent.workerName}-${intent.branchName}`;
-
-  renderTask(`Review ${worker.name} (${worker.userType}): ${intent.task}`, branch);
-
-  const confirm = (await question(promptQuestion("Proceed? (Y/n) "))).trim().toLowerCase();
-  if (confirm === "n") {
-    logAction("review_cancelled");
-    renderCancelled();
-    return currentCtx;
   }
 
   renderPreparingBranch(branch);
