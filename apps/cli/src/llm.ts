@@ -133,14 +133,16 @@ export async function classifyIntent(
           role: "system",
           content: `You are an intent classifier for a CLI tool. Classify user input into one of these intents and return ONLY valid JSON:
 
-1. User wants to execute a coding task (for themselves) → {"type":"task","task":"<original task>","branchName":"<kebab-case-short-name>"}
+1. User wants to execute a coding task (for themselves) → {"type":"task","branchName":"<kebab-case-short-name>"}
    - branchName: lowercase kebab-case, max 5 words, no prefix like feat/fix
+   - Do NOT include the task text — it will be taken from the original input
 
-2. User wants to review/improve someone else's code → {"type":"review","workerName":"<person name>","workerRole":"<designer|product>","task":"<what to review/improve>","branchName":"<kebab-case-short-name>"}
+2. User wants to review/improve someone else's code → {"type":"review","workerName":"<person name>","workerRole":"<designer|product>","branchName":"<kebab-case-short-name>"}
    - This applies when user mentions reviewing, checking, improving, or fixing someone's work
    - workerName must be the person's name (lowercase)
    - workerRole: infer from context — "designer" for designers/UI/UX, "product" for product managers. Default to "designer" if unclear
-   - branchName: lowercase kebab-case, max 5 words${workerCtx}
+   - branchName: lowercase kebab-case, max 5 words
+   - Do NOT include the task text — it will be taken from the original input${workerCtx}
 
 3. User wants to manage/organize/add/remove team workers → {"type":"manage_workers"}
    - e.g. "manage workers", "add worker", "整理 worker", "团队管理"
@@ -186,7 +188,11 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
   try {
     const parsed = JSON.parse(json);
     if (parsed.type === "task" || parsed.type === "review") {
-      return { ...parsed, branchName: sanitizeBranchName(parsed.branchName || "") } as Intent;
+      return {
+        ...parsed,
+        task: input,
+        branchName: sanitizeBranchName(parsed.branchName || ""),
+      } as Intent;
     }
     return parsed as Intent;
   } catch {

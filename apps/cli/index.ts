@@ -53,6 +53,16 @@ import { parsePrUrl, fetchPrInfo } from "./src/github.ts";
 // This transform sits between stdin and readline, intercepting paste markers
 // and replacing newlines with spaces so readline sees a single line.
 class PasteTransform extends Transform {
+  // Proxy TTY methods to stdin so readline can control raw mode / echo
+  get isTTY(): boolean {
+    return process.stdin.isTTY ?? false;
+  }
+
+  setRawMode(mode: boolean): this {
+    if (process.stdin.isTTY) process.stdin.setRawMode(mode);
+    return this;
+  }
+
   private pasting = false;
   private buf = "";
 
