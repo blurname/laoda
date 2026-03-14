@@ -139,7 +139,7 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
         },
         { role: "user", content: input },
       ],
-      200,
+      500,
     );
   } catch (e: any) {
     return {
