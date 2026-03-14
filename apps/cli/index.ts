@@ -81,12 +81,24 @@ export function runCli(): void {
     process.exit(0);
   });
 
+  function ask(prompt: string): Promise<string> {
+    return new Promise((resolve) => {
+      process.stdin.resume();
+      rl.question(prompt, (answer) => {
+        process.stdin.pause();
+        resolve(answer);
+      });
+    });
+  }
+
   function question(prompt: string): Promise<string> {
     return new Promise((resolve) => {
+      process.stdin.resume();
       const saved = rl.history ?? [];
       rl.history = [];
       rl.question(prompt, (answer) => {
         rl.history = saved;
+        process.stdin.pause();
         resolve(answer);
       });
     });
@@ -164,7 +176,7 @@ export function runCli(): void {
 
   async function loop(ctx: Context): Promise<void> {
     console.log();
-    const input = (await question(promptPrefix())).trim();
+    const input = (await ask(promptPrefix())).trim();
     if (input) saveHistory(rl.history ?? []);
     if (!input) {
       loop(ctx);
