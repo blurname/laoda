@@ -82,9 +82,13 @@ async function chat(messages: ChatMessage[], maxTokens = 100): Promise<string> {
     throw new Error(`OpenRouter API error: ${res.status} ${await res.text()}`);
   }
 
-  const data = (await res.json()) as { choices: { message: { content: string } }[] };
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const content = (data.choices?.[0]?.message?.content ?? "").trim();
-  logLlmResponse(content);
+  if (!content) {
+    logLlmResponse(`[empty response] raw=${JSON.stringify(data)}`);
+  } else {
+    logLlmResponse(content);
+  }
   return content;
 }
 
