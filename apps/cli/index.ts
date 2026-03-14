@@ -87,12 +87,30 @@ export function runCli(): void {
     process.exit(0);
   });
 
+  const PASTE_DELAY = 30;
+
   function ask(prompt: string): Promise<string> {
     return new Promise((resolve) => {
       process.stdin.resume();
-      rl.question(prompt, (answer) => {
+      const lines: string[] = [];
+      let timer: ReturnType<typeof setTimeout> | null = null;
+
+      const flush = (): void => {
+        rl.removeListener("line", onLine);
         process.stdin.pause();
-        resolve(answer);
+        resolve(lines.join("\n"));
+      };
+
+      const onLine = (line: string): void => {
+        lines.push(line);
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(flush, PASTE_DELAY);
+      };
+
+      rl.question(prompt, (first) => {
+        lines.push(first);
+        rl.on("line", onLine);
+        timer = setTimeout(flush, PASTE_DELAY);
       });
     });
   }
