@@ -153,7 +153,8 @@ export function runCli(): void {
       } else {
         renderThinking();
         intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry));
-        if (intent.type !== "unknown") {
+        const cacheable: Intent["type"][] = ["task", "review", "manage_workers"];
+        if (cacheable.includes(intent.type)) {
           memoSave(input, intent);
         }
       }
