@@ -83,7 +83,12 @@ export function runCli(): void {
 
   function question(prompt: string): Promise<string> {
     return new Promise((resolve) => {
-      rl.question(prompt, resolve);
+      const saved = rl.history ?? [];
+      rl.history = [];
+      rl.question(prompt, (answer) => {
+        rl.history = saved;
+        resolve(answer);
+      });
     });
   }
 
