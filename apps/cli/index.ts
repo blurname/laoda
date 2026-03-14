@@ -1,4 +1,5 @@
 import { createInterface } from "readline";
+import { Transform } from "stream";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
@@ -48,6 +49,46 @@ import { handleManageWorkers } from "./src/handlers/workers.ts";
 import { handlePr } from "./src/handlers/pr.ts";
 import { parsePrUrl, fetchPrInfo } from "./src/github.ts";
 
+// Bracketed paste: terminal wraps pasted text in \e[200~ ... \e[201~
+// This transform sits between stdin and readline, intercepting paste markers
+// and replacing newlines with spaces so readline sees a single line.
+class PasteTransform extends Transform {
+  private pasting = false;
+  private buf = "";
+
+  _transform(chunk: Buffer, _encoding: string, callback: () => void): void {
+    let s = chunk.toString();
+
+    while (s.length > 0) {
+      if (this.pasting) {
+        const endIdx = s.indexOf("\x1b[201~");
+        if (endIdx !== -1) {
+          this.buf += s.slice(0, endIdx);
+          this.push(this.buf.replace(/\r?\n/g, " "));
+          this.buf = "";
+          this.pasting = false;
+          s = s.slice(endIdx + 6);
+        } else {
+          this.buf += s;
+          s = "";
+        }
+      } else {
+        const startIdx = s.indexOf("\x1b[200~");
+        if (startIdx !== -1) {
+          this.push(s.slice(0, startIdx));
+          this.pasting = true;
+          s = s.slice(startIdx + 6);
+        } else {
+          this.push(s);
+          s = "";
+        }
+      }
+    }
+
+    callback();
+  }
+}
+
 export function runCli(): void {
   renderBanner();
 
@@ -66,8 +107,13 @@ export function runCli(): void {
     writeFileSync(historyPath, history.slice(0, 500).join("\n"), "utf-8");
   };
 
+  // Enable bracketed paste mode, pipe stdin through transform
+  process.stdout.write("\x1b[?2004h");
+  const pasteStream = new PasteTransform();
+  process.stdin.pipe(pasteStream);
+
   const rl = createInterface({
-    input: process.stdin,
+    input: pasteStream,
     output: process.stdout,
     history: loadHistory(),
     historySize: 500,
@@ -83,56 +129,17 @@ export function runCli(): void {
   });
 
   rl.on("close", () => {
-    process.stdout.write("\x1b[?2004l"); // disable bracketed paste mode
+    process.stdout.write("\x1b[?2004l");
     console.log();
     process.exit(0);
-  });
-
-  // Bracketed paste: terminal wraps pasted text in \e[200~ ... \e[201~
-  // Intercept raw data to extract full paste content before readline splits it.
-  process.stdout.write("\x1b[?2004h"); // enable bracketed paste mode
-  let pastedContent: string | null = null;
-
-  process.stdin.on("data", (chunk: Buffer) => {
-    const s = chunk.toString();
-    const start = s.indexOf("\x1b[200~");
-    const end = s.indexOf("\x1b[201~");
-    if (start !== -1 && end !== -1) {
-      pastedContent = s.slice(start + 6, end);
-    }
   });
 
   function ask(prompt: string): Promise<string> {
     return new Promise((resolve) => {
       process.stdin.resume();
-      pastedContent = null;
-
-      rl.question(prompt, (first) => {
-        if (pastedContent !== null) {
-          const text = pastedContent;
-          pastedContent = null;
-          const extraLines = text.split(/\r?\n/).length - 1;
-
-          if (extraLines > 0) {
-            // Drain extra line events that readline fires for remaining paste lines
-            let drained = 0;
-            const drain = (): void => {
-              drained++;
-              if (drained >= extraLines) {
-                rl.removeListener("line", drain);
-                process.stdin.pause();
-                resolve(text);
-              }
-            };
-            rl.on("line", drain);
-          } else {
-            process.stdin.pause();
-            resolve(text);
-          }
-        } else {
-          process.stdin.pause();
-          resolve(first);
-        }
+      rl.question(prompt, (answer) => {
+        process.stdin.pause();
+        resolve(answer);
       });
     });
   }
