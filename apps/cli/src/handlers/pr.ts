@@ -6,6 +6,7 @@ import { renderCancelled, renderSuccess, renderInfo, promptQuestion } from "../r
 import { handleTask } from "./task.ts";
 import { handleReview } from "./review.ts";
 import { sanitizeBranchName } from "../llm.ts";
+import { getAuthorWorkType, getAuthorRole, saveAuthor } from "../authors.ts";
 
 export async function handlePr(
   ctx: Context,
@@ -15,14 +16,25 @@ export async function handlePr(
   renderSuccess(`PR #${pr.number}: ${pr.title}`);
   renderInfo(`  by ${pr.author} → ${pr.branch}`);
 
+  const defaultType = getAuthorWorkType(pr.author, ctx.userName);
+  const isMy = defaultType === "my";
+
   console.log();
-  console.log("  1. My work (use numbered worker slot)");
-  console.log("  2. Review other's work (use named worker slot)");
+  console.log(`  1. ${isMy ? "My work" : "Review other's work"} (default)`);
+  console.log(`  2. ${isMy ? "Review other's work" : "My work"}`);
   console.log("  3. Cancel");
 
-  const pick = (await question(promptQuestion("Pick: "))).trim();
+  const pick = (await question(promptQuestion("Pick (1): "))).trim() || "1";
 
-  if (pick === "1") {
+  const chosenMy = (pick === "1" && isMy) || (pick === "2" && !isMy);
+
+  if (pick === "3") {
+    renderCancelled();
+    return ctx;
+  }
+
+  if (chosenMy) {
+    saveAuthor(pr.author, { workType: "my" });
     const intent: IntentTask = {
       type: "task",
       task: `Review PR #${pr.number}: ${pr.title}`,
@@ -30,18 +42,17 @@ export async function handlePr(
     };
     logAction(`pr_as_task pr=${pr.number}`);
     return handleTask(ctx, intent, question);
-  } else if (pick === "2") {
+  } else {
+    const role = getAuthorRole(pr.author);
+    saveAuthor(pr.author, { workType: "other", workerRole: role });
     const intent: IntentReview = {
       type: "review",
       workerName: pr.author,
-      workerRole: "designer",
+      workerRole: role,
       task: `Review PR #${pr.number}: ${pr.title}`,
       branchName: sanitizeBranchName(`pr-${pr.number}-${pr.branch}`),
     };
     logAction(`pr_as_review pr=${pr.number} author=${pr.author}`);
     return handleReview(ctx, intent, question);
-  } else {
-    renderCancelled();
-    return ctx;
   }
 }
