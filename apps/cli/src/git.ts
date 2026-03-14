@@ -26,10 +26,23 @@ export function getMainBranch(dir: string): string {
   }
 }
 
+export function branchExists(dir: string, branchName: string): boolean {
+  try {
+    execSync(`git rev-parse --verify ${branchName}`, { cwd: dir, stdio: "pipe" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function prepareGitBranch(dir: string, branchName: string): void {
   const main = getMainBranch(dir);
   execSync(`git fetch origin ${main}`, { cwd: dir, stdio: "pipe" });
   execSync(`git checkout ${main}`, { cwd: dir, stdio: "pipe" });
   execSync(`git reset --hard origin/${main}`, { cwd: dir, stdio: "pipe" });
+
+  if (branchExists(dir, branchName)) {
+    execSync(`git branch -D ${branchName}`, { cwd: dir, stdio: "pipe" });
+  }
   execSync(`git checkout -b ${branchName}`, { cwd: dir, stdio: "pipe" });
 }
