@@ -14,8 +14,8 @@ import {
 } from "./src/config.ts";
 import { classifyIntent, fetchModels } from "./src/llm.ts";
 import type { Intent } from "./src/llm.ts";
-import { createLogger } from "./src/logger.ts";
-import { createMemo } from "./src/memo.ts";
+import { Logger } from "./src/logger.ts";
+import { Memo } from "./src/memo.ts";
 import type { Context } from "./src/types.ts";
 import {
   loadRegistry,
@@ -71,8 +71,8 @@ export function runCli(): void {
   });
   const cwd = process.cwd();
   const project = getProjectName(cwd);
-  const logger = createLogger(project);
-  const memo = createMemo(project);
+  const logger = new Logger(project);
+  const memo = new Memo(project);
   const registry = loadRegistry(project);
 
   rl.on("SIGINT", () => {
@@ -126,7 +126,13 @@ export function runCli(): void {
     renderProject(project);
 
     const userName = await askUserName();
-    const ctx: Context = { cwd, userName, project, registry, logAction: logger.logAction };
+    const ctx: Context = {
+      cwd,
+      userName,
+      project,
+      registry,
+      logAction: (action) => logger.logAction(action),
+    };
 
     if (!getOpenRouterKey()) {
       console.log();
@@ -177,7 +183,10 @@ export function runCli(): void {
     loop(ctx);
   }
 
-  const llmLog = { request: logger.logLlmRequest, response: logger.logLlmResponse };
+  const llmLog = {
+    request: (model: string, messages: unknown) => logger.logLlmRequest(model, messages),
+    response: (raw: string) => logger.logLlmResponse(raw),
+  };
 
   async function loop(ctx: Context): Promise<void> {
     console.log();

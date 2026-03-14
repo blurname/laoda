@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tokenize, getBucket, tokenSimilarity, createMemo } from "./memo.ts";
+import { tokenize, getBucket, tokenSimilarity, Memo } from "./memo.ts";
 import type { Intent } from "./llm.ts";
 
 describe("tokenize", () => {
@@ -72,7 +72,7 @@ describe("tokenSimilarity", () => {
 
 describe("memo lookup / save integration", () => {
   const testProject = `test-${Date.now()}`;
-  const memo = createMemo(testProject);
+  const memo = new Memo(testProject);
 
   it("returns null when no entries exist", () => {
     expect(memo.lookup("add a new feature")).toBeNull();
