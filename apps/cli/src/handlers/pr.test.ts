@@ -29,6 +29,7 @@ vi.mock("../render.ts", () => ({
   renderCancelled: vi.fn(),
   renderInfo: vi.fn(),
   renderSuccess: vi.fn(),
+  renderFetching: vi.fn(),
   promptQuestion: vi.fn((s: string) => s),
 }));
 vi.mock("../worker.ts", async (importOriginal) => {

@@ -42,14 +42,13 @@ import {
   promptPrefix,
   promptQuestion,
 } from "./src/render.ts";
-import { handleTask } from "./src/handlers/task.ts";
-import { handleReview } from "./src/handlers/review.ts";
 import { handleChangeModel } from "./src/handlers/model.ts";
 import { handleManageWorkers } from "./src/handlers/workers.ts";
 import { handlePr } from "./src/handlers/pr.ts";
-import { handleListPr } from "./src/handlers/list-pr.ts";
 import { parsePrUrl, fetchPrInfo } from "./src/github.ts";
 import { parsePrShortcut } from "./src/shortcuts.ts";
+import { taskFlow, reviewFlow, reviewPrFlow } from "./src/flows.ts";
+import type { Capability } from "./src/flow.ts";
 
 // Bracketed paste: terminal wraps pasted text in \e[200~ ... \e[201~
 // This transform sits between stdin and readline, intercepting paste markers
@@ -247,6 +246,15 @@ export function runCli(): void {
     loop(ctx);
   }
 
+  async function runFlow<In>(
+    ctx: Context,
+    cap: Capability<In, unknown>,
+    input: In,
+  ): Promise<Context> {
+    const result = await cap.run(ctx, input, question);
+    return result.ctx;
+  }
+
   const llmLog = {
     request: (model: string, messages: unknown) => logger.logLlmRequest(model, messages),
     response: (raw: string) => logger.logLlmResponse(raw),
@@ -264,10 +272,13 @@ export function runCli(): void {
     logger.logUserInput(input);
     let nextCtx = ctx;
     try {
-      // "pr" / "get pr" shortcut — list PRs requesting my review
+      // "pr" / "get pr" / "xxx pr" shortcut — list PRs via flow
       const prListIntent = parsePrShortcut(input);
       if (prListIntent) {
-        nextCtx = await handleListPr(ctx, prListIntent, question);
+        nextCtx = await runFlow(ctx, reviewPrFlow, {
+          target: prListIntent.target,
+          userName: ctx.userName,
+        });
         loop(nextCtx);
         return;
       }
@@ -298,15 +309,28 @@ export function runCli(): void {
       logger.logIntent(intent);
 
       if (intent.type === "task") {
-        nextCtx = await handleTask(ctx, intent, question);
+        nextCtx = await runFlow(ctx, taskFlow, {
+          task: intent.task,
+          branchName: intent.branchName,
+          userName: ctx.userName,
+        });
       } else if (intent.type === "review") {
-        nextCtx = await handleReview(ctx, intent, question);
+        nextCtx = await runFlow(ctx, reviewFlow, {
+          workerName: intent.workerName,
+          workerRole: intent.workerRole,
+          task: intent.task,
+          branchName: intent.branchName,
+          userName: ctx.userName,
+        });
       } else if (intent.type === "manage_workers") {
         nextCtx = await handleManageWorkers(ctx, question);
       } else if (intent.type === "change_model") {
         nextCtx = await handleChangeModel(ctx, intent, question);
       } else if (intent.type === "list_pr") {
-        nextCtx = await handleListPr(ctx, intent, question);
+        nextCtx = await runFlow(ctx, reviewPrFlow, {
+          target: intent.target,
+          userName: ctx.userName,
+        });
       } else if (intent.type === "change_agent") {
         setAgent(intent.agent);
         renderSuccess(`Agent set to ${intent.agent}`);

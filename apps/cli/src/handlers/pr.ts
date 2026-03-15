@@ -1,11 +1,9 @@
 import type { PrInfo } from "../github.ts";
-import type { IntentTask, IntentReview } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
 import { renderCancelled, renderSuccess, renderInfo, promptQuestion } from "../render.ts";
-import { handleTask } from "./task.ts";
-import { handleReview } from "./review.ts";
 import { sanitizeBranchName } from "../llm.ts";
 import { getAuthorWorkType, getAuthorRole, saveAuthor } from "../authors.ts";
+import { taskFlow, reviewFlow } from "../flows.ts";
 
 export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): Promise<Context> {
   renderSuccess(`PR #${pr.number}: ${pr.title}`);
@@ -34,13 +32,17 @@ export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): 
       saveAuthor(pr.author, { workType: "my" });
       renderSuccess(`Saved: ${pr.author} → my work`);
     }
-    const intent: IntentTask = {
-      type: "task",
-      task: `Review PR #${pr.number}: ${pr.title}`,
-      branchName: sanitizeBranchName(`pr-${pr.number}-${pr.branch}`),
-    };
     ctx.logAction(`pr_as_task pr=${pr.number}`);
-    return handleTask(ctx, intent, question);
+    const result = await taskFlow.run(
+      ctx,
+      {
+        task: `Review PR #${pr.number}: ${pr.title}`,
+        branchName: sanitizeBranchName(`pr-${pr.number}-${pr.branch}`),
+        userName: ctx.userName,
+      },
+      question,
+    );
+    return result.ctx;
   } else {
     let role = getAuthorRole(pr.author);
     if (isOverride) {
@@ -53,14 +55,18 @@ export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): 
       saveAuthor(pr.author, { workType: "other", workerRole: role });
       renderSuccess(`Saved: ${pr.author} → ${role}`);
     }
-    const intent: IntentReview = {
-      type: "review",
-      workerName: pr.author,
-      workerRole: role,
-      task: `Review PR #${pr.number}: ${pr.title}`,
-      branchName: sanitizeBranchName(`pr-${pr.number}-${pr.branch}`),
-    };
     ctx.logAction(`pr_as_review pr=${pr.number} author=${pr.author}`);
-    return handleReview(ctx, intent, question);
+    const result = await reviewFlow.run(
+      ctx,
+      {
+        workerName: pr.author,
+        workerRole: role,
+        task: `Review PR #${pr.number}: ${pr.title}`,
+        branchName: sanitizeBranchName(`pr-${pr.number}-${pr.branch}`),
+        userName: ctx.userName,
+      },
+      question,
+    );
+    return result.ctx;
   }
 }
