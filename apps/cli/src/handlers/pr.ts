@@ -1,9 +1,9 @@
-import type { PrInfo } from "../github.ts";
+import type { PrInfo } from "../infra/github.ts";
 import type { Context, QuestionFn } from "../types.ts";
 import { renderCancelled, renderSuccess, renderInfo, promptQuestion } from "../render.ts";
-import { sanitizeBranchName } from "../llm.ts";
-import { getAuthorWorkType, getAuthorRole, saveAuthor } from "../authors.ts";
-import { taskFlow, reviewFlow } from "../flows.ts";
+import { sanitizeBranchName } from "../llm/classify.ts";
+import { getAuthorWorkType, getAuthorRole, saveAuthor } from "../infra/authors.ts";
+import { taskFlow, reviewFlow } from "../flow/flows.ts";
 
 export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): Promise<Context> {
   renderSuccess(`PR #${pr.number}: ${pr.title}`);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { tokenize, getBucket, tokenSimilarity, Memo } from "./memo.ts";
-import type { Intent } from "./llm.ts";
+import type { Intent } from "./classify.ts";
 
 describe("tokenize", () => {
   it("splits on whitespace and lowercases", () => {

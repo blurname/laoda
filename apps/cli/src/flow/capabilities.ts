@@ -1,10 +1,10 @@
 import { existsSync } from "fs";
 import { copyFolder, duplicateFolder } from "@laoda/capability";
-import type { Capability } from "./flow.ts";
-import type { PrInfo } from "./github.ts";
-import { getRepoSlug, listPrsForReview, listPrsByAuthor } from "./github.ts";
-import type { UserType } from "./types.ts";
-import type { AllocResult } from "./worker.ts";
+import type { Capability } from "./engine.ts";
+import type { PrInfo } from "../infra/github.ts";
+import { getRepoSlug, listPrsForReview, listPrsByAuthor } from "../infra/github.ts";
+import type { UserType } from "../types.ts";
+import type { AllocResult } from "../infra/worker.ts";
 import {
   allocateMyWorker,
   findOtherWorker,
@@ -13,9 +13,9 @@ import {
   makeWorkerBusy,
   replaceWorker,
   saveRegistry,
-} from "./worker.ts";
-import { findEnvFiles, prepareGitBranch } from "./git.ts";
-import { spawnTab as zellijSpawnTab } from "./zellij.ts";
+} from "../infra/worker.ts";
+import { findEnvFiles, prepareGitBranch } from "../infra/git.ts";
+import { spawnTab as zellijSpawnTab } from "../infra/zellij.ts";
 import {
   renderFetching,
   renderInfo,
@@ -28,7 +28,7 @@ import {
   renderBranchReady,
   renderTabCreated,
   promptQuestion,
-} from "./render.ts";
+} from "../render.ts";
 
 // ─── fetchPrs ───
 

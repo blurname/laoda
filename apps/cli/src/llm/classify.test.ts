@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sanitizeBranchName } from "./llm.ts";
+import { sanitizeBranchName } from "./classify.ts";
 
 describe("sanitizeBranchName", () => {
   it("lowercases and converts spaces to hyphens", () => {

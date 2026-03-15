@@ -3,7 +3,7 @@ import { Transform } from "stream";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import { getProjectName } from "./src/workspace.ts";
+import { getProjectName } from "./src/infra/workspace.ts";
 import {
   getName,
   setName,
@@ -14,11 +14,11 @@ import {
   setAgent,
   isModelsCacheStale,
   saveModelsCache,
-} from "./src/config.ts";
-import { classifyIntent, fetchModels } from "./src/llm.ts";
-import type { Intent } from "./src/llm.ts";
-import { Logger } from "./src/logger.ts";
-import { Memo } from "./src/memo.ts";
+} from "./src/infra/config.ts";
+import { classifyIntent, fetchModels } from "./src/llm/classify.ts";
+import type { Intent } from "./src/llm/classify.ts";
+import { Logger } from "./src/infra/logger.ts";
+import { Memo } from "./src/llm/memo.ts";
 import type { Context } from "./src/types.ts";
 import {
   loadRegistry,
@@ -26,7 +26,7 @@ import {
   findUnregistered,
   getOtherWorkerNames,
   resolveWorkerFolders,
-} from "./src/worker.ts";
+} from "./src/infra/worker.ts";
 import {
   renderBanner,
   renderProject,
@@ -45,10 +45,10 @@ import {
 import { handleChangeModel } from "./src/handlers/model.ts";
 import { handleManageWorkers } from "./src/handlers/workers.ts";
 import { handlePr } from "./src/handlers/pr.ts";
-import { parsePrUrl, fetchPrInfo } from "./src/github.ts";
-import { parsePrShortcut } from "./src/shortcuts.ts";
-import { taskFlow, reviewFlow, reviewPrFlow } from "./src/flows.ts";
-import type { Capability } from "./src/flow.ts";
+import { parsePrUrl, fetchPrInfo } from "./src/infra/github.ts";
+import { parsePrShortcut } from "./src/llm/shortcuts.ts";
+import { taskFlow, reviewFlow, reviewPrFlow } from "./src/flow/flows.ts";
+import type { Capability } from "./src/flow/engine.ts";
 
 // Bracketed paste: terminal wraps pasted text in \e[200~ ... \e[201~
 // This transform sits between stdin and readline, intercepting paste markers

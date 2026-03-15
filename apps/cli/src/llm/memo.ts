@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import type { Intent } from "./llm.ts";
+import type { Intent } from "./classify.ts";
 
 type IntentBucket = "change" | "add" | "fix" | "remove" | "update" | "other";
 

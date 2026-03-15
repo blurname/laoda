@@ -7,7 +7,7 @@ import {
   getOtherWorkerNames,
   addWorker as addWorkerToRegistry,
   removeWorkerByName,
-} from "../worker.ts";
+} from "../infra/worker.ts";
 import { renderInfo, renderSuccess, renderCancelled, promptQuestion } from "../render.ts";
 
 export async function handleManageWorkers(ctx: Context, question: QuestionFn): Promise<Context> {

@@ -1,4 +1,4 @@
-import type { Context, QuestionFn } from "./types.ts";
+import type { Context, QuestionFn } from "../types.ts";
 
 // ─── Core abstractions ───
 

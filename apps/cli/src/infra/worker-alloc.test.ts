@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { WorkerRegistry, MyWorker } from "./types.ts";
+import type { WorkerRegistry, MyWorker } from "../types.ts";
 
 // Mock dependencies before importing worker.ts
 vi.mock("fs", async (importOriginal) => {

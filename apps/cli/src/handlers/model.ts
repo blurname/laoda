@@ -1,5 +1,5 @@
-import { setModel, loadModelsCache } from "../config.ts";
-import type { IntentChangeModel } from "../llm.ts";
+import { setModel, loadModelsCache } from "../infra/config.ts";
+import type { IntentChangeModel } from "../llm/classify.ts";
 import type { Context, QuestionFn } from "../types.ts";
 import {
   renderInfo,

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { flow, guard } from "./flow.ts";
-import type { Capability, CapIn, CapOut } from "./flow.ts";
-import type { Context } from "./types.ts";
+import { flow, guard } from "./engine.ts";
+import type { Capability, CapIn, CapOut } from "./engine.ts";
+import type { Context } from "../types.ts";
 
 function makeCtx(): Context {
   return {

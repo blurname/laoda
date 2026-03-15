@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import type { Worker, WorkerRegistry, WorkerFolder, MyWorker, OtherWorker } from "./types.ts";
+import type { Worker, WorkerRegistry, WorkerFolder, MyWorker, OtherWorker } from "../types.ts";
 import { isGitClean } from "./workspace.ts";
 
 const WORKERS_DIR = join(homedir(), ".local", "share", "laoda", "workers");

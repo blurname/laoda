@@ -2,7 +2,7 @@ import { execFileSync, execSync } from "child_process";
 import { writeFileSync, unlinkSync, chmodSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
-import type { AgentType } from "./types.ts";
+import type { AgentType } from "../types.ts";
 
 function resolveCommand(agent: AgentType): string {
   const name = agent === "cursor" ? "cursor" : "claude";

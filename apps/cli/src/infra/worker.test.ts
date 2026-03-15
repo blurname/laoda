@@ -7,7 +7,7 @@ import {
   findNextMyWorkerIndex,
   getOtherWorkerNames,
 } from "./worker.ts";
-import type { WorkerRegistry, OtherWorker } from "./types.ts";
+import type { WorkerRegistry, OtherWorker } from "../types.ts";
 
 describe("workerFolderName", () => {
   it("names MyWorker with numeric suffix", () => {

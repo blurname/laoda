@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Context } from "../types.ts";
-import type { PrInfo } from "../github.ts";
+import type { PrInfo } from "../infra/github.ts";
 
 vi.mock("fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs")>();
@@ -16,9 +16,9 @@ vi.mock("@laoda/capability", () => ({
   copyFolder: vi.fn(),
   duplicateFolder: vi.fn(() => "/home/user/voyager-1"),
 }));
-vi.mock("../zellij.ts", () => ({ spawnTab: vi.fn() }));
-vi.mock("../git.ts", () => ({ findEnvFiles: vi.fn(() => []), prepareGitBranch: vi.fn() }));
-vi.mock("../workspace.ts", () => ({ isGitClean: vi.fn(() => false) }));
+vi.mock("../infra/zellij.ts", () => ({ spawnTab: vi.fn() }));
+vi.mock("../infra/git.ts", () => ({ findEnvFiles: vi.fn(() => []), prepareGitBranch: vi.fn() }));
+vi.mock("../infra/workspace.ts", () => ({ isGitClean: vi.fn(() => false) }));
 vi.mock("../render.ts", () => ({
   renderReuse: vi.fn(),
   renderDuplicating: vi.fn(),
@@ -32,13 +32,13 @@ vi.mock("../render.ts", () => ({
   renderFetching: vi.fn(),
   promptQuestion: vi.fn((s: string) => s),
 }));
-vi.mock("../worker.ts", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../worker.ts")>();
+vi.mock("../infra/worker.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../infra/worker.ts")>();
   return { ...actual, saveRegistry: vi.fn() };
 });
 
 import { writeFileSync } from "fs";
-import { spawnTab } from "../zellij.ts";
+import { spawnTab } from "../infra/zellij.ts";
 import { handlePr } from "./pr.ts";
 
 function makeCtx(workers: Context["registry"]["workers"] = []): Context {

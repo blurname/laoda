@@ -1,4 +1,4 @@
-import { getOpenRouterKey, getModel } from "./config.ts";
+import { getOpenRouterKey, getModel } from "../infra/config.ts";
 
 export type IntentTask = {
   type: "task";

@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
-import type { AgentType } from "./types.ts";
+import type { AgentType } from "../types.ts";
 
 type LaodaConfig = {
   name?: string;

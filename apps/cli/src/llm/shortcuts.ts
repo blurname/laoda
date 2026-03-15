@@ -1,4 +1,4 @@
-import type { IntentListPr } from "./llm.ts";
+import type { IntentListPr } from "./classify.ts";
 
 export function parsePrShortcut(input: string): IntentListPr | null {
   const lower = input.toLowerCase().trim();
