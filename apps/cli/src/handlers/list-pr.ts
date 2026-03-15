@@ -1,15 +1,18 @@
-import type { IntentListPr } from "../llm.ts";
+import type { IntentListPr, IntentReview } from "../llm.ts";
+import { sanitizeBranchName } from "../llm.ts";
 import type { Context, QuestionFn } from "../types.ts";
 import type { PrInfo } from "../github.ts";
 import { getRepoSlug, listPrsForReview, listPrsByAuthor } from "../github.ts";
+import { getAuthorRole } from "../authors.ts";
 import {
   renderInfo,
   renderSuccess,
   renderError,
   renderFetching,
+  renderCancelled,
   promptQuestion,
 } from "../render.ts";
-import { handlePr } from "./pr.ts";
+import { handleReview } from "./review.ts";
 
 function renderPrList(prs: PrInfo[]): void {
   for (let i = 0; i < prs.length; i++) {
@@ -57,11 +60,31 @@ export async function handleListPr(
   const idx = parseInt(pick);
 
   if (!pick || idx === 0 || isNaN(idx) || idx < 1 || idx > prs.length) {
-    renderInfo("Cancelled");
+    renderCancelled();
     return ctx;
   }
 
   const selected = prs[idx - 1]!;
   ctx.logAction(`list_pr_selected pr=${selected.number}`);
-  return handlePr(ctx, selected, question);
+
+  // Ask whether to start review workflow
+  console.log();
+  console.log(`  1. Start review (default)`);
+  console.log(`  2. Cancel`);
+  const action = (await question(promptQuestion("Action: "))).trim() || "1";
+  if (action !== "1") {
+    renderCancelled();
+    return ctx;
+  }
+
+  const role = getAuthorRole(selected.author);
+  const reviewIntent: IntentReview = {
+    type: "review",
+    workerName: selected.author,
+    workerRole: role,
+    task: `Review PR #${selected.number}: ${selected.title}`,
+    branchName: sanitizeBranchName(`pr-${selected.number}-${selected.branch}`),
+  };
+  ctx.logAction(`list_pr_review pr=${selected.number} author=${selected.author}`);
+  return handleReview(ctx, reviewIntent, question);
 }
