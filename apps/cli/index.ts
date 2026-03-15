@@ -47,7 +47,9 @@ import { handleReview } from "./src/handlers/review.ts";
 import { handleChangeModel } from "./src/handlers/model.ts";
 import { handleManageWorkers } from "./src/handlers/workers.ts";
 import { handlePr } from "./src/handlers/pr.ts";
+import { handleListPr } from "./src/handlers/list-pr.ts";
 import { parsePrUrl, fetchPrInfo } from "./src/github.ts";
+import { parsePrShortcut } from "./src/shortcuts.ts";
 
 // Bracketed paste: terminal wraps pasted text in \e[200~ ... \e[201~
 // This transform sits between stdin and readline, intercepting paste markers
@@ -262,6 +264,14 @@ export function runCli(): void {
     logger.logUserInput(input);
     let nextCtx = ctx;
     try {
+      // "pr" / "get pr" shortcut — list PRs requesting my review
+      const prListIntent = parsePrShortcut(input);
+      if (prListIntent) {
+        nextCtx = await handleListPr(ctx, prListIntent, question);
+        loop(nextCtx);
+        return;
+      }
+
       // PR URL shortcut — skip LLM
       const prParsed = parsePrUrl(input);
       if (prParsed) {
@@ -295,6 +305,8 @@ export function runCli(): void {
         nextCtx = await handleManageWorkers(ctx, question);
       } else if (intent.type === "change_model") {
         nextCtx = await handleChangeModel(ctx, intent, question);
+      } else if (intent.type === "list_pr") {
+        nextCtx = await handleListPr(ctx, intent, question);
       } else if (intent.type === "change_agent") {
         setAgent(intent.agent);
         renderSuccess(`Agent set to ${intent.agent}`);

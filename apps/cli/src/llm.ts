@@ -24,6 +24,11 @@ export type IntentChangeAgent = {
   agent: "claude" | "cursor";
 };
 
+export type IntentListPr = {
+  type: "list_pr";
+  target: "me" | string; // "me" = review requested from me, string = author name
+};
+
 export type IntentManageWorkers = {
   type: "manage_workers";
 };
@@ -36,6 +41,7 @@ export type IntentUnknown = {
 export type Intent =
   | IntentTask
   | IntentReview
+  | IntentListPr
   | IntentChangeModel
   | IntentChangeAgent
   | IntentManageWorkers
@@ -154,7 +160,11 @@ export async function classifyIntent(
 5. User wants to switch the AI agent (claude/cursor) → {"type":"change_agent","agent":"<claude|cursor>"}
    - e.g. "use cursor", "switch to claude", "用 cursor"
 
-6. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
+6. User wants to list/get PRs → {"type":"list_pr","target":"<me|author-name>"}
+   - "pr", "get pr", "my pr" → target "me" (PRs requesting my review)
+   - "review xxx pr", "xxx 的 pr", "xxx pr" → target is the person's name/GitHub username
+
+7. Cannot determine intent → {"type":"unknown","message":"<brief explanation>"}
 
 Return ONLY the JSON object, no markdown fences, no extra text.`,
         },
