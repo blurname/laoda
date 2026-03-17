@@ -34,6 +34,7 @@ import {
   renderModel,
   renderAgent,
   renderThinking,
+  renderCancelled,
   renderInfo,
   renderError,
   renderSuccess,
@@ -134,7 +135,13 @@ export function runCli(): void {
 
   const registry = loadRegistry(project);
 
+  let activeAbort: AbortController | null = null;
+
   rl.on("SIGINT", () => {
+    if (activeAbort) {
+      activeAbort.abort();
+      activeAbort = null;
+    }
     process.stdout.write("\n");
   });
 
@@ -270,6 +277,8 @@ export function runCli(): void {
 
     logger.logUserInput(input);
     let nextCtx = ctx;
+    const abort = new AbortController();
+    activeAbort = abort;
     try {
       // "pr" / "get pr" / "xxx pr" shortcut — list PRs via flow
       const prListIntent = parsePrShortcut(input);
@@ -293,7 +302,12 @@ export function runCli(): void {
       }
 
       renderThinking();
-      const intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry), llmLog);
+      const intent = await classifyIntent(
+        input,
+        getOtherWorkerNames(ctx.registry),
+        llmLog,
+        abort.signal,
+      );
       logger.logIntent(intent);
 
       if (intent.type === "task") {
@@ -327,9 +341,15 @@ export function runCli(): void {
         renderInfo(`${intent.message}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`);
       }
     } catch (e: unknown) {
-      const msg = `${e instanceof Error ? e.message : String(e)}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`;
-      logger.logError(msg);
-      renderError(msg);
+      if (e instanceof DOMException && e.name === "AbortError") {
+        renderCancelled();
+      } else {
+        const msg = `${e instanceof Error ? e.message : String(e)}\n  project: ${ctx.project}\n  cwd: ${ctx.cwd}`;
+        logger.logError(msg);
+        renderError(msg);
+      }
+    } finally {
+      activeAbort = null;
     }
 
     loop(nextCtx);

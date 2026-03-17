@@ -78,7 +78,12 @@ export type LlmLog = {
   response: (raw: string) => void;
 };
 
-async function chat(messages: ChatMessage[], maxTokens: number, log: LlmLog): Promise<ChatResult> {
+async function chat(
+  messages: ChatMessage[],
+  maxTokens: number,
+  log: LlmLog,
+  signal?: AbortSignal,
+): Promise<ChatResult> {
   const key = getOpenRouterKey();
   if (!key) {
     throw new Error("OpenRouter key not set. Run laoda with --set-key <key>");
@@ -99,6 +104,7 @@ async function chat(messages: ChatMessage[], maxTokens: number, log: LlmLog): Pr
       temperature: 0,
       max_tokens: maxTokens,
     }),
+    signal,
   });
 
   if (!res.ok) {
@@ -125,6 +131,7 @@ export async function classifyIntent(
   input: string,
   workerNames: string[],
   log: LlmLog,
+  signal?: AbortSignal,
 ): Promise<Intent> {
   const workerCtx =
     workerNames.length > 0
@@ -172,6 +179,7 @@ Return ONLY the JSON object, no markdown fences, no extra text.`,
       ],
       500,
       log,
+      signal,
     );
   } catch (e: unknown) {
     return {
