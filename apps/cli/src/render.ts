@@ -31,10 +31,6 @@ export function renderAgent(agent: string): void {
   console.log(`  ${c.dim}Agent: ${c.reset}${c.bold}${agent}${c.reset}`);
 }
 
-export function renderCached(): void {
-  console.log(`  ${c.dim}(cached)${c.reset}`);
-}
-
 export function renderThinking(): void {
   console.log(`  ${c.dim}Thinking...${c.reset}`);
 }

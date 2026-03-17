@@ -16,9 +16,9 @@ import {
   saveModelsCache,
 } from "./src/infra/config.ts";
 import { classifyIntent, fetchModels } from "./src/llm/classify.ts";
-import type { Intent } from "./src/llm/classify.ts";
+
 import { Logger } from "./src/infra/logger.ts";
-import { Memo } from "./src/llm/memo.ts";
+
 import type { Context } from "./src/types.ts";
 import {
   loadRegistry,
@@ -33,7 +33,6 @@ import {
   renderUser,
   renderModel,
   renderAgent,
-  renderCached,
   renderThinking,
   renderInfo,
   renderError,
@@ -132,7 +131,7 @@ export function runCli(): void {
   const cwd = process.cwd();
   const project = getProjectName(cwd);
   const logger = new Logger(project);
-  const memo = new Memo(project);
+
   const registry = loadRegistry(project);
 
   rl.on("SIGINT", () => {
@@ -293,19 +292,8 @@ export function runCli(): void {
         return;
       }
 
-      const cached = memo.lookup(input);
-      let intent;
-      if (cached) {
-        intent = cached;
-        renderCached();
-      } else {
-        renderThinking();
-        intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry), llmLog);
-        const cacheable: Intent["type"][] = ["task", "review", "manage_workers"];
-        if (cacheable.includes(intent.type)) {
-          memo.save(input, intent);
-        }
-      }
+      renderThinking();
+      const intent = await classifyIntent(input, getOtherWorkerNames(ctx.registry), llmLog);
       logger.logIntent(intent);
 
       if (intent.type === "task") {
