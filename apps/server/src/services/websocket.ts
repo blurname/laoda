@@ -1,4 +1,4 @@
-import type { ServerMessage } from "@laoda/shared";
+import type { ServerMessage } from "../types";
 
 export const clients = new Set<any>();
 

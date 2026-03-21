@@ -3,7 +3,6 @@ import { existsSync, readdirSync, rmSync, renameSync, mkdirSync, cpSync } from "
 import { join, basename } from "path";
 import { osAdapter } from "../adapters/os";
 import { notifyClients } from "../services/websocket";
-import type { ServerMessage } from "@laoda/shared";
 import { watchedPaths, watchers, startWatching } from "../services/watcher";
 import { getGitInfo } from "../utils/git";
 import { copyFolder, duplicateFolder } from "../../../capability/copy.ts";

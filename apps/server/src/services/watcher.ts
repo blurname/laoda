@@ -2,12 +2,11 @@ import { watch } from "chokidar";
 import { join } from "path";
 import { getGitInfo } from "../utils/git";
 import { notifyClients } from "./websocket";
-import type { ServerMessage } from "@laoda/shared";
 
 export const watchedPaths = new Set<string>();
 export const watchers = new Map<string, any>();
 
-export function startWatching(path: string, shouldBroadcast = true) {
+export function startWatching(path: string, _shouldBroadcast = true) {
   const id = Buffer.from(path).toString("base64");
   if (!watchedPaths.has(path)) {
     console.log(`[Watcher] Starting for: ${path}`);

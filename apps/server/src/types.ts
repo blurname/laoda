@@ -1,19 +1,15 @@
-/**
- * WebSocket Message Protocol for laoda
- */
-
-export interface GitInfo {
+type GitInfo = {
   branch: string;
   diffCount: number;
   latestCommit: string;
-}
+};
 
-export interface MoveResult {
+type MoveResult = {
   path: string;
   newPath?: string;
   success: boolean;
   error?: string;
-}
+};
 
 export type ServerMessage =
   | {
@@ -46,8 +42,3 @@ export type ServerMessage =
       type: "MOVE_BULK_COMPLETE";
       results: MoveResult[];
     };
-
-export type ServerMessageType = ServerMessage["type"];
-
-// Helper to narrow types in resolvers
-export type ServerMessagePayload<T extends ServerMessageType> = Extract<ServerMessage, { type: T }>;

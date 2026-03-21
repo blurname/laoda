@@ -7,8 +7,7 @@
     "dev": "tsx watch index.ts"
   },
   "dependencies": {
-    "@laoda/capability": "workspace:*",
-    "@laoda/shared": "workspace:*"
+    "@laoda/capability": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0"
