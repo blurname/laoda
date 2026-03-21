@@ -90,3 +90,42 @@ export function promptPrefix(): string {
 export function promptQuestion(message: string): string {
   return `  ${c.cyan}?${c.reset} ${message}`;
 }
+
+// ─── Flow error rendering ───
+
+export function renderFlowError(error: {
+  failedStep: string;
+  cause: unknown;
+  rollback: { attempted: boolean; results: { step: string; ok: boolean; error?: unknown }[] };
+}): void {
+  const cause = error.cause;
+  const message =
+    typeof cause === "object" && cause !== null && "message" in cause
+      ? (cause as { message: string }).message
+      : String(cause);
+
+  console.log();
+  console.log(`  ${c.red}✗${c.reset} ${c.bold}${error.failedStep}${c.reset} failed: ${message}`);
+
+  if (typeof cause === "object" && cause !== null && "hint" in cause) {
+    console.log(`  ${c.dim}  hint: ${(cause as { hint: string }).hint}${c.reset}`);
+  }
+
+  if (error.rollback.attempted) {
+    const allOk = error.rollback.results.every((r) => r.ok);
+    if (allOk) {
+      console.log(`  ${c.green}↺${c.reset} Rolled back successfully`);
+    } else {
+      for (const r of error.rollback.results) {
+        if (r.ok) {
+          console.log(`  ${c.green}↺${c.reset} ${c.dim}${r.step}${c.reset} rolled back`);
+        } else {
+          console.log(
+            `  ${c.red}↺${c.reset} ${c.dim}${r.step}${c.reset} rollback failed: ${r.error}`,
+          );
+        }
+      }
+    }
+  }
+  console.log();
+}

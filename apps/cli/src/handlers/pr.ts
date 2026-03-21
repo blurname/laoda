@@ -1,9 +1,24 @@
 import type { PrInfo } from "../infra/github.ts";
 import type { Context, QuestionFn } from "../types.ts";
-import { renderCancelled, renderSuccess, renderInfo, promptQuestion } from "../render.ts";
+import {
+  renderCancelled,
+  renderSuccess,
+  renderInfo,
+  renderFlowError,
+  promptQuestion,
+} from "../render.ts";
 import { sanitizeBranchName } from "../llm/classify.ts";
 import { getAuthorWorkType, getAuthorRole, saveAuthor } from "../infra/authors.ts";
 import { taskFlow, reviewFlow } from "../flow/flows.ts";
+import type { FlowResult } from "../flow/engine.ts";
+
+function handleFlowResult(ctx: Context, result: FlowResult<unknown>): Context {
+  if (!result.ok) {
+    renderFlowError(result.error);
+    return result.ctx;
+  }
+  return result.ctx;
+}
 
 export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): Promise<Context> {
   renderSuccess(`PR #${pr.number}: ${pr.title}`);
@@ -42,7 +57,7 @@ export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): 
       },
       question,
     );
-    return result.ctx;
+    return handleFlowResult(ctx, result);
   } else {
     let role = getAuthorRole(pr.author);
     if (isOverride) {
@@ -67,6 +82,6 @@ export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): 
       },
       question,
     );
-    return result.ctx;
+    return handleFlowResult(ctx, result);
   }
 }

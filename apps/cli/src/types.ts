@@ -62,6 +62,15 @@ export type Context = {
 
 export type QuestionFn = (prompt: string) => Promise<string>;
 
+// ─── Error ───
+
+export type CapabilityError = {
+  capability: string;
+  message: string;
+  hint?: string;
+  cause?: unknown;
+};
+
 // ─── Effect ───
 
 export type Effect =

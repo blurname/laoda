@@ -39,6 +39,7 @@ import {
   renderError,
   renderSuccess,
   renderFetching,
+  renderFlowError,
   promptPrefix,
   promptQuestion,
 } from "./src/render.ts";
@@ -48,7 +49,7 @@ import { handlePr } from "./src/handlers/pr.ts";
 import { parsePrUrl, fetchPrInfo } from "./src/infra/github.ts";
 import { parsePrShortcut } from "./src/llm/shortcuts.ts";
 import { taskFlow, reviewFlow, reviewPrFlow } from "./src/flow/flows.ts";
-import type { Capability } from "./src/flow/engine.ts";
+import type { Flow } from "./src/flow/engine.ts";
 
 // Bracketed paste: terminal wraps pasted text in \e[200~ ... \e[201~
 // This transform sits between stdin and readline, intercepting paste markers
@@ -252,12 +253,15 @@ export function runCli(): void {
     loop(ctx);
   }
 
-  async function runFlow<In>(
-    ctx: Context,
-    cap: Capability<In, unknown>,
-    input: In,
-  ): Promise<Context> {
-    const result = await cap.run(ctx, input, question);
+  async function runFlow<In>(ctx: Context, f: Flow<In, unknown>, input: In): Promise<Context> {
+    const result = await f.run(ctx, input, question);
+    if (!result.ok) {
+      renderFlowError(result.error);
+      logger.logError(
+        `Flow failed at ${result.error.failedStep}: ${result.error.cause instanceof Error ? result.error.cause.message : String(result.error.cause)}`,
+      );
+      return result.ctx;
+    }
     return result.ctx;
   }
 

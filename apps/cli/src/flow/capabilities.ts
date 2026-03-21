@@ -1,9 +1,9 @@
-import { existsSync } from "fs";
+import { existsSync, rmSync } from "fs";
 import { copyFolder, duplicateFolder } from "@laoda/capability";
 import type { Capability } from "./engine.ts";
 import type { PrInfo } from "../infra/github.ts";
 import { getRepoSlug, listPrsForReview, listPrsByAuthor } from "../infra/github.ts";
-import type { UserType } from "../types.ts";
+import type { UserType, CapabilityError } from "../types.ts";
 import type { AllocResult } from "../infra/worker.ts";
 import {
   allocateMyWorker,
@@ -129,6 +129,7 @@ export const planMyWorker: Capability<
 
 // ─── executeMyWorker ───
 // Acts on a pre-computed allocation decision.
+// Returns cleanup that restores registry and removes duplicated folder on rollback.
 
 export const executeMyWorker: Capability<
   { alloc: AllocResult; task: string; branch: string },
@@ -136,8 +137,10 @@ export const executeMyWorker: Capability<
 > = {
   name: "executeMyWorker",
   run: async (ctx, { alloc, task, branch }) => {
+    const originalRegistry = ctx.registry;
     let targetDir: string;
     let newRegistry: typeof ctx.registry;
+    let created = false;
 
     if (alloc.action === "reuse") {
       targetDir = alloc.path;
@@ -151,6 +154,7 @@ export const executeMyWorker: Capability<
       renderDuplicating();
       const envFiles = findEnvFiles(ctx.cwd);
       targetDir = duplicateFolder(ctx.cwd, envFiles);
+      created = true;
       renderDuplicated(targetDir);
 
       const newWorker = {
@@ -164,7 +168,17 @@ export const executeMyWorker: Capability<
     }
 
     saveRegistry(newRegistry);
-    return { ctx: { ...ctx, registry: newRegistry }, value: { dir: targetDir } };
+
+    const cleanup = () => {
+      if (created) {
+        try {
+          rmSync(targetDir, { recursive: true, force: true });
+        } catch {}
+      }
+      saveRegistry(originalRegistry);
+    };
+
+    return { ctx: { ...ctx, registry: newRegistry }, value: { dir: targetDir }, cleanup };
   },
 };
 
@@ -202,6 +216,7 @@ export const planReviewWorker: Capability<
 
 // ─── executeReviewWorker ───
 // Acts on a pre-computed review plan.
+// Returns cleanup that removes duplicated folder and reverts registry on rollback.
 
 export const executeReviewWorker: Capability<
   {
@@ -215,6 +230,7 @@ export const executeReviewWorker: Capability<
 > = {
   name: "executeReviewWorker",
   run: async (ctx, { workerName, workerRole, reviewDir, needsRegister, needsDuplicate }) => {
+    const originalRegistry = ctx.registry;
     let currentCtx = ctx;
     const role = workerRole ?? "designer";
 
@@ -234,7 +250,16 @@ export const executeReviewWorker: Capability<
       renderDuplicated(reviewDir);
     }
 
-    return { ctx: currentCtx, value: { dir: reviewDir } };
+    const cleanup = () => {
+      if (needsDuplicate && existsSync(reviewDir)) {
+        try {
+          rmSync(reviewDir, { recursive: true, force: true });
+        } catch {}
+      }
+      saveRegistry(originalRegistry);
+    };
+
+    return { ctx: currentCtx, value: { dir: reviewDir }, cleanup };
   },
 };
 
@@ -244,7 +269,17 @@ export const prepareBranch: Capability<{ dir: string; branch: string }, Record<s
   name: "prepareBranch",
   run: async (ctx, { dir, branch }) => {
     renderPreparingBranch(branch);
-    prepareGitBranch(dir, branch);
+    try {
+      prepareGitBranch(dir, branch);
+    } catch (cause) {
+      const err: CapabilityError = {
+        capability: "prepareBranch",
+        message: `Failed to prepare branch "${branch}" in ${dir}`,
+        hint: "Check network connection and git remote access",
+        cause,
+      };
+      throw err;
+    }
     renderBranchReady(branch);
     return { ctx, value: {} as Record<string, never> };
   },
@@ -258,7 +293,17 @@ export const spawnTab: Capability<
 > = {
   name: "spawnTab",
   run: async (ctx, { dir, title, prompt }) => {
-    zellijSpawnTab(title, prompt, dir, ctx.agent);
+    try {
+      zellijSpawnTab(title, prompt, dir, ctx.agent);
+    } catch (cause) {
+      const err: CapabilityError = {
+        capability: "spawnTab",
+        message: "Failed to spawn zellij tab",
+        hint: "Is zellij running? Check `zellij list-sessions`",
+        cause,
+      };
+      throw err;
+    }
     ctx.logAction(`tab_created dir=${dir}`);
     renderTabCreated();
     return { ctx, value: {} as Record<string, never> };
