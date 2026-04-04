@@ -3,9 +3,10 @@ import { Box, Text, useInput } from "ink";
 import { reducer, createInitialState } from "../core/reducer.ts";
 import { setSink } from "../core/bridge/message-sink.ts";
 import { setQuestionHandler, createQuestionFn } from "../core/bridge/question-bridge.ts";
-import type { Action } from "../core/types.ts";
+import type { Action, WorkerDisplay } from "../core/types.ts";
 import { handleCommand } from "./command.ts";
 import { scanWorkerStatus } from "./worker-scan.ts";
+import { startWatching, stopWatching } from "./worker-watcher.ts";
 import type { Context } from "../../types.ts";
 import { getModel } from "../../infra/config.ts";
 import { Logger } from "../../infra/logger.ts";
@@ -41,17 +42,20 @@ export function App({ initialCtx }: AppProps) {
     });
   }, []);
 
-  // Worker polling
+  // Worker status: initial scan + file watch
   useEffect(() => {
-    const poll = () => {
-      try {
-        const workers = scanWorkerStatus(state.ctx.cwd, state.ctx.registry);
-        dispatch({ type: "SET_WORKERS", workers });
-      } catch {}
+    const refresh = (workers: WorkerDisplay[]) => {
+      dispatch({ type: "SET_WORKERS", workers });
     };
-    poll();
-    const id = setInterval(poll, 5000);
-    return () => clearInterval(id);
+
+    // Initial scan
+    try {
+      refresh(scanWorkerStatus(state.ctx.cwd, state.ctx.registry));
+    } catch {}
+
+    // Watch .git/index + .git/HEAD for real-time updates
+    startWatching(state.ctx.cwd, state.ctx.registry, refresh);
+    return () => stopWatching();
   }, [state.ctx.cwd, state.ctx.registry]);
 
   const llmLog = {
