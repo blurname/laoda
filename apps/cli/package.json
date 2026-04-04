@@ -2,16 +2,22 @@
   "name": "@laoda/cli",
   "private": true,
   "type": "module",
-  "module": "index.ts",
+  "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./src/*": "./src/*"
+  },
   "scripts": {
     "dev": "tsx watch index.ts"
   },
   "dependencies": {
     "@laoda/capability": "workspace:*",
-    "@laoda/ui-core": "workspace:*"
+    "ink": "^6.0.0",
+    "react": "^19.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0"
   },
   "peerDependencies": {
     "typescript": "^5"

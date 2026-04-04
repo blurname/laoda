@@ -1,6 +1,6 @@
 import type { PrInfo } from "../infra/github.ts";
 import type { Context, QuestionFn } from "../types.ts";
-import { emit } from "@laoda/ui-core/src/bridge/message-sink.ts";
+import { emit } from "../ui/core/bridge/message-sink.ts";
 import {
   renderCancelled,
   renderSuccess,

@@ -1,18 +1,14 @@
 import React, { useReducer, useEffect, useRef } from "react";
 import { Box, Text, useInput } from "ink";
-import {
-  reducer,
-  createInitialState,
-  setSink,
-  setQuestionHandler,
-  createQuestionFn,
-} from "@laoda/ui-core";
-import type { Action } from "@laoda/ui-core";
+import { reducer, createInitialState } from "../core/reducer.ts";
+import { setSink } from "../core/bridge/message-sink.ts";
+import { setQuestionHandler, createQuestionFn } from "../core/bridge/question-bridge.ts";
+import type { Action } from "../core/types.ts";
 import { handleCommand } from "./command.ts";
 import { scanWorkerStatus } from "./worker-scan.ts";
-import type { Context } from "@laoda/cli/src/types.ts";
-import { getModel } from "@laoda/cli/src/infra/config.ts";
-import { Logger } from "@laoda/cli/src/infra/logger.ts";
+import type { Context } from "../../types.ts";
+import { getModel } from "../../infra/config.ts";
+import { Logger } from "../../infra/logger.ts";
 
 import { Header } from "./components/header.tsx";
 import { WorkerPanel } from "./components/worker-panel.tsx";

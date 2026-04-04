@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Text, useStdout } from "ink";
-import type { TuiMessage } from "@laoda/ui-core";
+import type { TuiMessage } from "../../core/types.ts";
 
 type MessageLogProps = {
   messages: TuiMessage[];

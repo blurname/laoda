@@ -8,7 +8,7 @@ import {
   addWorker as addWorkerToRegistry,
   removeWorkerByName,
 } from "../infra/worker.ts";
-import { emit } from "@laoda/ui-core/src/bridge/message-sink.ts";
+import { emit } from "../ui/core/bridge/message-sink.ts";
 import { renderInfo, renderSuccess, renderCancelled, promptQuestion } from "../render.ts";
 
 export async function handleManageWorkers(ctx: Context, question: QuestionFn): Promise<Context> {

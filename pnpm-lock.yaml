@@ -50,9 +50,12 @@ importers:
       '@laoda/capability':
         specifier: workspace:*
         version: link:../capability
-      '@laoda/ui-core':
-        specifier: workspace:*
-        version: link:../ui-core
+      ink:
+        specifier: ^6.0.0
+        version: 6.8.0(@types/react@19.2.14)(react@19.2.4)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.4
       typescript:
         specifier: ^5
         version: 5.9.3
@@ -60,6 +63,9 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.7
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
 
   apps/server:
     dependencies:
@@ -82,34 +88,6 @@ importers:
       '@types/ws':
         specifier: ^8.18.1
         version: 8.18.1
-
-  apps/tui:
-    dependencies:
-      '@laoda/cli':
-        specifier: workspace:*
-        version: link:../cli
-      '@laoda/ui-core':
-        specifier: workspace:*
-        version: link:../ui-core
-      ink:
-        specifier: ^6.0.0
-        version: 6.8.0(@types/react@19.2.14)(react@19.2.4)
-      react:
-        specifier: ^19.0.0
-        version: 19.2.4
-      typescript:
-        specifier: ^5
-        version: 5.9.3
-    devDependencies:
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.2.14
-
-  apps/ui-core:
-    dependencies:
-      typescript:
-        specifier: ^5
-        version: 5.9.3
 
 packages:
 

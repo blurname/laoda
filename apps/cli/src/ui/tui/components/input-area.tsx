@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Box, Text, useInput } from "ink";
-import type { InputMode } from "@laoda/ui-core";
+import type { InputMode } from "../../core/types.ts";
 
 type InputAreaProps = {
   mode: InputMode;

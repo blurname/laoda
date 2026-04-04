@@ -16,7 +16,7 @@ import {
 } from "../infra/worker.ts";
 import { findEnvFiles, prepareGitBranch } from "../infra/git.ts";
 import { spawnTab as zellijSpawnTab } from "../infra/zellij.ts";
-import { emit } from "@laoda/ui-core/src/bridge/message-sink.ts";
+import { emit } from "../ui/core/bridge/message-sink.ts";
 import {
   renderFetching,
   renderInfo,

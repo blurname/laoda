@@ -1,2 +1,2 @@
-import { runTui } from "./apps/tui/src/run.tsx";
+import { runTui } from "./apps/cli/src/ui/tui/run.tsx";
 runTui();

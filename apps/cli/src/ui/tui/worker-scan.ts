@@ -1,7 +1,7 @@
-import type { WorkerRegistry } from "@laoda/cli/src/types.ts";
-import type { WorkerDisplay } from "@laoda/ui-core";
-import { resolveWorkerFolders, workerFolderName } from "@laoda/cli/src/infra/worker.ts";
-import { isGitClean } from "@laoda/cli/src/infra/workspace.ts";
+import type { WorkerRegistry } from "../../types.ts";
+import type { WorkerDisplay } from "../core/types.ts";
+import { resolveWorkerFolders, workerFolderName } from "../../infra/worker.ts";
+import { isGitClean } from "../../infra/workspace.ts";
 
 export function scanWorkerStatus(cwd: string, registry: WorkerRegistry): WorkerDisplay[] {
   const folders = resolveWorkerFolders(cwd, registry);

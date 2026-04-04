@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
-import type { WorkerDisplay } from "@laoda/ui-core";
+import type { WorkerDisplay } from "../../core/types.ts";
 
 type WorkerPanelProps = {
   workers: WorkerDisplay[];

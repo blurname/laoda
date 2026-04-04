@@ -1,15 +1,15 @@
-import type { Context, QuestionFn } from "@laoda/cli/src/types.ts";
-import type { LlmLog } from "@laoda/cli/src/llm/classify.ts";
-import type { Action } from "@laoda/ui-core";
-import { classifyIntent } from "@laoda/cli/src/llm/classify.ts";
-import { parsePrShortcut } from "@laoda/cli/src/llm/shortcuts.ts";
-import { parsePrUrl, fetchPrInfo } from "@laoda/cli/src/infra/github.ts";
-import { getOtherWorkerNames } from "@laoda/cli/src/infra/worker.ts";
-import { setAgent } from "@laoda/cli/src/infra/config.ts";
-import { taskFlow, reviewFlow, reviewPrFlow } from "@laoda/cli/src/flow/flows.ts";
-import { handlePr } from "@laoda/cli/src/handlers/pr.ts";
-import { handleManageWorkers } from "@laoda/cli/src/handlers/workers.ts";
-import { handleChangeModel } from "@laoda/cli/src/handlers/model.ts";
+import type { Context, QuestionFn } from "../../types.ts";
+import type { LlmLog } from "../../llm/classify.ts";
+import type { Action } from "../core/types.ts";
+import { classifyIntent } from "../../llm/classify.ts";
+import { parsePrShortcut } from "../../llm/shortcuts.ts";
+import { parsePrUrl, fetchPrInfo } from "../../infra/github.ts";
+import { getOtherWorkerNames } from "../../infra/worker.ts";
+import { setAgent } from "../../infra/config.ts";
+import { taskFlow, reviewFlow, reviewPrFlow } from "../../flow/flows.ts";
+import { handlePr } from "../../handlers/pr.ts";
+import { handleManageWorkers } from "../../handlers/workers.ts";
+import { handleChangeModel } from "../../handlers/model.ts";
 import {
   renderThinking,
   renderFetching,
@@ -18,8 +18,8 @@ import {
   renderError,
   renderCancelled,
   renderFlowError,
-} from "@laoda/cli/src/render.ts";
-import type { Flow } from "@laoda/cli/src/flow/engine.ts";
+} from "../../render.ts";
+import type { Flow } from "../../flow/engine.ts";
 
 async function runFlow<In>(
   ctx: Context,

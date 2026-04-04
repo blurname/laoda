@@ -1,8 +1,8 @@
 import React from "react";
 import { render } from "ink";
 import { App } from "./app.tsx";
-import type { Context } from "@laoda/cli/src/types.ts";
-import { getProjectName } from "@laoda/cli/src/infra/workspace.ts";
+import type { Context } from "../../types.ts";
+import { getProjectName } from "../../infra/workspace.ts";
 import {
   getName,
   setName,
@@ -11,10 +11,10 @@ import {
   getAgent,
   isModelsCacheStale,
   saveModelsCache,
-} from "@laoda/cli/src/infra/config.ts";
-import { loadRegistry } from "@laoda/cli/src/infra/worker.ts";
-import { fetchModels } from "@laoda/cli/src/llm/classify.ts";
-import { Logger } from "@laoda/cli/src/infra/logger.ts";
+} from "../../infra/config.ts";
+import { loadRegistry } from "../../infra/worker.ts";
+import { fetchModels } from "../../llm/classify.ts";
+import { Logger } from "../../infra/logger.ts";
 import { createInterface } from "readline";
 
 async function askLine(prompt: string): Promise<string> {
