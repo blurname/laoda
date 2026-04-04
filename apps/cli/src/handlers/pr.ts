@@ -1,5 +1,6 @@
 import type { PrInfo } from "../infra/github.ts";
 import type { Context, QuestionFn } from "../types.ts";
+import { emit } from "@laoda/ui-core/src/bridge/message-sink.ts";
 import {
   renderCancelled,
   renderSuccess,
@@ -27,10 +28,10 @@ export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): 
   const defaultType = getAuthorWorkType(pr.author, ctx.userName);
   const isMy = defaultType === "my";
 
-  console.log();
-  console.log(`  1. ${isMy ? "My work" : "Review other's work"} (default)`);
-  console.log(`  2. ${isMy ? "Review other's work" : "My work"}`);
-  console.log("  3. Cancel");
+  emit("raw", "");
+  emit("raw", `  1. ${isMy ? "My work" : "Review other's work"} (default)`);
+  emit("raw", `  2. ${isMy ? "Review other's work" : "My work"}`);
+  emit("raw", "  3. Cancel");
 
   const pick = (await question(promptQuestion("Pick (1): "))).trim() || "1";
 
@@ -61,9 +62,9 @@ export async function handlePr(ctx: Context, pr: PrInfo, question: QuestionFn): 
   } else {
     let role = getAuthorRole(pr.author);
     if (isOverride) {
-      console.log();
-      console.log("  1. designer");
-      console.log("  2. product");
+      emit("raw", "");
+      emit("raw", "  1. designer");
+      emit("raw", "  2. product");
       const rolePick =
         (await question(promptQuestion(`Role for ${pr.author} (1): `))).trim() || "1";
       role = rolePick === "2" ? "product" : "designer";

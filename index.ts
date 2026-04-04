@@ -1,2 +1,2 @@
-import { runCli } from "./apps/cli/index.ts";
-runCli();
+import { runTui } from "./apps/tui/src/run.tsx";
+runTui();

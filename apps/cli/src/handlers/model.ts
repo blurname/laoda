@@ -1,6 +1,7 @@
 import { setModel, loadModelsCache } from "../infra/config.ts";
 import type { IntentChangeModel } from "../llm/classify.ts";
 import type { Context, QuestionFn } from "../types.ts";
+import { emit } from "@laoda/ui-core/src/bridge/message-sink.ts";
 import {
   renderInfo,
   renderSuccess,
@@ -30,7 +31,7 @@ export async function handleChangeModel(
     return ctx;
   }
 
-  console.log();
+  emit("raw", "");
   for (let i = 0; i < matches.length; i++) {
     renderModelOption(i + 1, matches[i]!.id, matches[i]!.name);
   }

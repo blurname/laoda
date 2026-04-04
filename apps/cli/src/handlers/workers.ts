@@ -8,6 +8,7 @@ import {
   addWorker as addWorkerToRegistry,
   removeWorkerByName,
 } from "../infra/worker.ts";
+import { emit } from "@laoda/ui-core/src/bridge/message-sink.ts";
 import { renderInfo, renderSuccess, renderCancelled, promptQuestion } from "../render.ts";
 
 export async function handleManageWorkers(ctx: Context, question: QuestionFn): Promise<Context> {
@@ -17,7 +18,7 @@ export async function handleManageWorkers(ctx: Context, question: QuestionFn): P
     (u) => !/^\d+$/.test(u),
   );
 
-  console.log();
+  emit("raw", "");
   if (otherNames.length > 0) {
     renderSuccess(`Registered: ${otherNames.join(", ")}`);
   } else {
@@ -27,10 +28,10 @@ export async function handleManageWorkers(ctx: Context, question: QuestionFn): P
     renderInfo(`Unregistered folders: ${unregistered.join(", ")}`);
   }
 
-  console.log();
-  console.log("  1. Add worker");
-  console.log("  2. Remove worker");
-  console.log("  3. Cancel");
+  emit("raw", "");
+  emit("raw", "  1. Add worker");
+  emit("raw", "  2. Remove worker");
+  emit("raw", "  3. Cancel");
 
   const pick = (await question(promptQuestion("Pick: "))).trim();
 
@@ -54,8 +55,8 @@ async function handleAddWorker(ctx: Context, question: QuestionFn): Promise<Cont
     return ctx;
   }
 
-  console.log("  1. designer");
-  console.log("  2. product");
+  emit("raw", "  1. designer");
+  emit("raw", "  2. product");
   const typePick = (await question(promptQuestion("Type: "))).trim();
   const userType: UserType = typePick === "2" ? "product" : "designer";
 
@@ -76,10 +77,10 @@ async function handleRemoveWorker(
     return ctx;
   }
 
-  console.log();
+  emit("raw", "");
   for (let i = 0; i < otherNames.length; i++) {
     const w = findOtherWorker(ctx.registry, otherNames[i]!);
-    console.log(`  ${i + 1}. ${otherNames[i]} (${w?.userType})`);
+    emit("raw", `  ${i + 1}. ${otherNames[i]} (${w?.userType})`);
   }
 
   const idx = parseInt((await question(promptQuestion("Pick number to remove: "))).trim()) - 1;

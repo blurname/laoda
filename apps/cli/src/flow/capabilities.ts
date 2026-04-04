@@ -16,6 +16,7 @@ import {
 } from "../infra/worker.ts";
 import { findEnvFiles, prepareGitBranch } from "../infra/git.ts";
 import { spawnTab as zellijSpawnTab } from "../infra/zellij.ts";
+import { emit } from "@laoda/ui-core/src/bridge/message-sink.ts";
 import {
   renderFetching,
   renderInfo,
@@ -60,13 +61,13 @@ export const fetchPrs: Capability<{ target: "me" | string }, { prs: PrInfo[] }> 
 export const selectPr: Capability<{ prs: PrInfo[] }, { pr: PrInfo }> = {
   name: "selectPr",
   run: async (ctx, { prs }, ask) => {
-    console.log();
+    emit("raw", "");
     for (let i = 0; i < prs.length; i++) {
       const pr = prs[i]!;
-      console.log(`  ${i + 1}. #${pr.number} ${pr.title} (${pr.author})`);
+      emit("raw", `  ${i + 1}. #${pr.number} ${pr.title} (${pr.author})`);
     }
-    console.log(`  0. Cancel`);
-    console.log();
+    emit("raw", `  0. Cancel`);
+    emit("raw", "");
 
     const pick = (await ask(promptQuestion("Pick a PR: "))).trim();
     const idx = parseInt(pick);
@@ -85,12 +86,12 @@ export const selectPr: Capability<{ prs: PrInfo[] }, { pr: PrInfo }> = {
 export const confirm: Capability<{ plan: string[] }, { confirmed: boolean }> = {
   name: "confirm",
   run: async (ctx, { plan }, ask) => {
-    console.log();
+    emit("raw", "");
     renderInfo("Plan:");
     for (const step of plan) {
-      console.log(`    ${step}`);
+      emit("raw", `    ${step}`);
     }
-    console.log();
+    emit("raw", "");
 
     const answer = (await ask(promptQuestion("Execute? (Y/n) "))).trim().toLowerCase();
     const confirmed = answer !== "n";

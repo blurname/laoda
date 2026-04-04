@@ -1,0 +1,9 @@
+{
+  "name": "@laoda/ui-core",
+  "private": true,
+  "type": "module",
+  "module": "src/index.ts",
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
